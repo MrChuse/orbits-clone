@@ -3,6 +3,7 @@ from enum import Enum
 from typing import Optional, Union
 import math
 import random
+from collections import deque
 
 import pygame
 from pygame import Vector2
@@ -26,8 +27,8 @@ SPHERE_SIZE = REFERENCE_SPHERE_SIZE / REFERENCE_SCREEN_SIZE / 2
 
 
 DEFAULT_SPEED = 2
-SPHERE_SIZE = 7
-PLAYER_SIZE = 10
+# SPHERE_SIZE = 7
+# PLAYER_SIZE = 10
 
 class Team(Enum):
     RED = (255, 40, 40)
@@ -92,11 +93,15 @@ class PlayerSphere(Sphere):
     max_dodge_duration = 30
     cooldown_duration = 30
     dodge_speed = 1.5
+    path_size_per_trail_sphere=10
     def __init__(self, center, velocity, radius, color):
         super().__init__(center, velocity, radius, color)
         self.rotating_around : Optional[RotatorSphere] = None
         self.dodge_initiated = False
         self.frames_from_dodge = 0
+        self.path = deque(maxlen=self.path_size_per_trail_sphere)
+        self.trail : list[Sphere] = []
+        self.alive = True
 
     def is_dodging(self):
         return 0 < self.frames_from_dodge <= self.max_dodge_duration
@@ -105,7 +110,19 @@ class PlayerSphere(Sphere):
     def can_dodge(self):
         return self.frames_from_dodge == 0
 
+    def add_sphere(self, sphere: Sphere):
+        sphere.color = self.color
+        self.trail.append(sphere)
+        self.path = deque(self.path, maxlen=(len(self.trail)+1) * self.path_size_per_trail_sphere)
+
+    def get_sphere_position(self, i):
+        try:
+            return self.path[self.path_size_per_trail_sphere * i - 1]
+        except IndexError:
+            return self.path[-1]
+
     def update(self):
+        if not self.alive: return
         if self.rotating_around is None:
             if self.dodge_initiated:
                 self.frames_from_dodge = 1
@@ -138,7 +155,9 @@ class PlayerSphere(Sphere):
             self.velocity = new_rotator_me_vector.rotate(velocity_rotate_angle)
             self.velocity.scale_to_length(DEFAULT_SPEED)
             # super().update(debug_surface)
-            return
+        for i, sphere in enumerate(self.trail, 1):
+            sphere.center = self.get_sphere_position(i)
+        self.path.append(Vector2(self.center))
 
     def draw_debug(self, debug_surface: pygame.Surface):
         pygame.draw.line(debug_surface, (255,255,255), self.center, self.center+self.velocity*20, width=3)
@@ -162,10 +181,12 @@ class PlayerSphere(Sphere):
 class Game:
     def __init__(self, size) -> None:
         self.set_dimensions(size)
+        min_dimension = min(size)
         self.rotator = RotatorSphere(Vector2(300, 150), 150)
-        self.s1 = PlayerSphere(Vector2(500, 100 + 20 * math.cos(45/180*math.pi)), Vector2(-DEFAULT_SPEED, 0), PLAYER_SIZE, Team.RED.value)
-        self.s2 = PlayerSphere(Vector2(100, 200), Vector2(DEFAULT_SPEED, 0), PLAYER_SIZE, Team.BLUE.value)
+        self.s1 = PlayerSphere(Vector2(500, 100 + 20 * math.cos(45/180*math.pi)), Vector2(-DEFAULT_SPEED, 0), PLAYER_SIZE * min_dimension, Team.RED.value)
+        self.s2 = PlayerSphere(Vector2(100, 200), Vector2(DEFAULT_SPEED, 0), PLAYER_SIZE * min_dimension, Team.BLUE.value)
         self.player_spheres: list[PlayerSphere] = [self.s1, self.s2]
+        self.someone_won = False
         self.spheres = []
         self.rotators = [self.rotator]
         for i in range(10):
@@ -193,10 +214,11 @@ class Game:
                 self.actions_in_last_frame.append(self.keys_list.index(action))
 
     def add_random_sphere(self):
-        self.spheres.append(Sphere(Vector2(random.randint(int(SPHERE_SIZE), self.size[0]-int(SPHERE_SIZE)),
-                                           random.randint(int(SPHERE_SIZE), self.size[1]-int(SPHERE_SIZE))),
+        sphere_size = SPHERE_SIZE * min(self.size)
+        self.spheres.append(Sphere(Vector2(random.randint(int(sphere_size), self.size[0]-int(sphere_size)),
+                                           random.randint(int(sphere_size), self.size[1]-int(sphere_size))),
                                    Vector2(0, 0),
-                                   SPHERE_SIZE,
+                                   sphere_size,
                                    (255,255,255)))
 
     def update(self, time_delta: float):
@@ -215,11 +237,11 @@ class Game:
                     if player_sphere.can_dodge():
                         player_sphere.dodge_initiated = True
 
-
-        self.s1.update()
-        self.s2.update()
+        for i in self.player_spheres:
+            i.update()
 
         for index, sphere in enumerate(self.player_spheres, 1):
+            # walls
             if sphere.check_collision(self.topwall):
                 sphere.velocity.y *= -1
                 sphere.rotating_around = None
@@ -233,20 +255,45 @@ class Game:
                 sphere.velocity.x *= -1
                 sphere.rotating_around = None
 
+            # other players
             for sphere_to_check in self.player_spheres[index:]:
+                if not sphere_to_check.alive: continue
                 if sphere.check_collision(sphere_to_check):
                     sphere.rotating_around = None
                     sphere_to_check.rotating_around = None
                     if not sphere.is_dodging() and not sphere_to_check.is_dodging():
                         sphere.collide_with(sphere_to_check)
+
+            # other players' trails
+            for other_player in self.player_spheres:
+                if sphere == other_player:
+                    continue
+                for sphere_to_check in other_player.trail:
+                    if sphere.check_collision(sphere_to_check):
+                        for sphere_to_pop in sphere.trail:
+                            other_player.add_sphere(sphere_to_pop)
+                        sphere.trail = []
+                        sphere.alive = False
+
+            # white spheres
+            for sphere_to_check in self.spheres:
+                if sphere.check_collision(sphere_to_check):
+                    if not sphere.is_dodging():
+                        sphere.add_sphere(sphere_to_check)
+                        self.spheres.remove(sphere_to_check)
+                        self.add_random_sphere()
+
         for i in self.player_spheres:
             i.velocity.scale_to_length(DEFAULT_SPEED)
-        return self.debug_surface
+
+        if len(self.player_spheres) == 1:
+            self.someone_won = True
 
     def get_state(self):
         return {'rotators': self.rotators,
                 'players': self.player_spheres,
-                'spheres': self.spheres,}
+                'spheres': self.spheres,
+                'someone_won': self.someone_won}
 
     def draw_debug(self, debug_surface: pygame.Surface):
         self.s1.draw_debug(debug_surface)

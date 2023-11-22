@@ -10,10 +10,13 @@ def draw_rotator_sphere(surface, rotator: RotatorSphere):
     draw_sphere(surface, rotator.middle_sphere)
 
 def draw_player(surface, sphere: PlayerSphere):
+    if not sphere.alive: return
     if sphere.is_dodging():
         pygame.draw.ellipse(surface, color=pygame.Color(255,255,255).lerp(sphere.color, 0.7), rect=sphere.get_rect())
     else:
         pygame.draw.ellipse(surface, color=sphere.color, rect=sphere.get_rect())
+    for i in sphere.trail:
+        draw_sphere(surface, i)
 
 def draw_game(surface, state):
     for i in state['rotators']:
