@@ -50,12 +50,15 @@ def main():
         # cursor_manager = pygame_gui.UIManager(window_size, 'theme.json', starting_language=settings['language'])
 
         game = Game(window_size)
-
+        game.register_players_and_keys([pygame.K_e, pygame.K_q])
         # settings = SettingsWindow(pygame.Rect(100, 100, 300, 300), manager, resizable=True)
         clock = pygame.time.Clock()
         is_running = True
         visual_debug = False
         game_surface = pygame.Surface(window_size)
+        is_paused = False
+        by_step = False
+        actions = []
         while is_running:
             time_delta = clock.tick(60)/1000.0
             # state = game.get_state()
@@ -69,6 +72,13 @@ def main():
                     if event.key == pygame.K_SPACE and pygame.key.get_mods() & pygame.KMOD_ALT:
                         visual_debug = not visual_debug
                         manager.set_visual_debug_mode(visual_debug)
+                    if event.key in [pygame.K_e, pygame.K_q]:
+                        actions.append(event.key)
+                    if event.key == pygame.K_F2:
+                        is_paused = not is_paused
+                    if event.key == pygame.K_F3:
+                        by_step = True
+                        is_paused = True
                 # elif event.type == APPLY_VOLUME_CHANGE:
                     # for key in ['click_start', 'click_end']:
                         # sounds[key].set_volume(event.settings['master_volume'] * event.settings['click_volume'])
@@ -101,13 +111,18 @@ def main():
             try:
                 manager.update(time_delta)
                 if game is not None:
-                    game.update(time_delta)
+                    if not is_paused or by_step:
+                        game.process_actions(actions)
+                        game.update(time_delta)
+                        actions = []
+                        by_step = False
             except Exception as e:
                 print(e)
                 print_exc()
 
             state = game.get_state()
             draw_game(game_surface, state)
+            # game.draw_debug(game_surface)
             window_surface.blit(background, (0, 0))
             window_surface.blit(game_surface, (0, 0))
             manager.draw_ui(window_surface)
