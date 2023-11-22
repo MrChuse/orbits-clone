@@ -48,7 +48,7 @@ def main():
         if settings['fullscreen']:
             window_surface = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
         else:
-            window_surface = pygame.display.set_mode((800, 300), pygame.RESIZABLE)
+            window_surface = pygame.display.set_mode((800, 500), pygame.RESIZABLE)
         window_size = window_surface.get_rect().size
 
         background = pygame.Surface(window_size)

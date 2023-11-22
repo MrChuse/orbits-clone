@@ -7,6 +7,24 @@ import random
 import pygame
 from pygame import Vector2
 
+# reference from picture in pixels
+REFERENCE_SCREEN_SIZE = 885
+REFERENCE_ROTATOR_SIZE = 285
+REFERENCE_ROTATOR_INNER_SIZE = 26
+REFERENCE_PLAYER_SIZE = 45
+REFERENCE_PLAYER_SPHERE_DISTANCE = 63.15
+REFERENCE_SPHERE_SIZE = 33
+REFERENCE_BURST_OUTER_SIZE = 59
+REFERENCE_BURST_INNER_SIZE = 41
+
+# part of screen
+ROTATOR_SIZE = REFERENCE_ROTATOR_SIZE / REFERENCE_SCREEN_SIZE / 2
+ROTATOR_INNER_SIZE = REFERENCE_ROTATOR_INNER_SIZE / REFERENCE_SCREEN_SIZE / 2
+PLAYER_SIZE = REFERENCE_PLAYER_SIZE / REFERENCE_SCREEN_SIZE / 2
+SPHERE_SIZE = REFERENCE_SPHERE_SIZE / REFERENCE_SCREEN_SIZE / 2
+
+
+
 DEFAULT_SPEED = 2
 SPHERE_SIZE = 7
 PLAYER_SIZE = 10
@@ -52,8 +70,8 @@ class Sphere:
             # pushout
             dist = self.center.distance_to(other.center)
             overlap = -(dist - self.radius - other.radius) * 0.5
-            self.center += overlap * (self.center - other.center).normalize()
-            other.center -= overlap * (self.center - other.center).normalize()
+            self.center += overlap * (self.center - other.center).normalize() * 1.003
+            other.center -= overlap * (self.center - other.center).normalize() * 1.003
 
             # elastic collision
             n = (other.center - self.center).normalize()
@@ -175,8 +193,8 @@ class Game:
                 self.actions_in_last_frame.append(self.keys_list.index(action))
 
     def add_random_sphere(self):
-        self.spheres.append(Sphere(Vector2(random.randint(SPHERE_SIZE, self.size[0]-SPHERE_SIZE),
-                                           random.randint(SPHERE_SIZE, self.size[1]-SPHERE_SIZE)),
+        self.spheres.append(Sphere(Vector2(random.randint(int(SPHERE_SIZE), self.size[0]-int(SPHERE_SIZE)),
+                                           random.randint(int(SPHERE_SIZE), self.size[1]-int(SPHERE_SIZE))),
                                    Vector2(0, 0),
                                    SPHERE_SIZE,
                                    (255,255,255)))
