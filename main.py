@@ -19,6 +19,14 @@ from front import draw_sphere, draw_game
 # controls for apiary and inventory
 
 
+def inscribed_rectangle_dimensions(w, h):
+    vertical_side = min(w, h / 2)
+    horizontal_side = min(w / 2, h)
+    print(horizontal_side, vertical_side)
+    if horizontal_side > vertical_side:
+        return 2 * horizontal_side, horizontal_side
+    else:
+        return vertical_side, 2 * vertical_side
 
 def main():
         game = None
@@ -44,18 +52,23 @@ def main():
         window_size = window_surface.get_rect().size
 
         background = pygame.Surface(window_size)
-        background.fill(pygame.Color('#000000'))
+        background.fill(pygame.Color('#101010'))
 
         manager = pygame_gui.UIManager(window_size, 'theme.json', enable_live_theme_updates=False, starting_language=settings['language'])
         # cursor_manager = pygame_gui.UIManager(window_size, 'theme.json', starting_language=settings['language'])
 
-        game = Game(window_size)
+
+        game_size = inscribed_rectangle_dimensions(*window_size)
+        borderx = (window_size[0] - game_size[0]) / 2
+        bordery = (window_size[1] - game_size[1]) / 2
+        game_surface_margin = borderx, bordery
+        game = Game(game_size)
         game.register_players_and_keys([pygame.K_e, pygame.K_q])
         # settings = SettingsWindow(pygame.Rect(100, 100, 300, 300), manager, resizable=True)
         clock = pygame.time.Clock()
         is_running = True
         visual_debug = False
-        game_surface = pygame.Surface(window_size)
+        game_surface = pygame.Surface(game_size)
         is_paused = False
         by_step = False
         actions = []
@@ -124,7 +137,7 @@ def main():
             draw_game(game_surface, state)
             # game.draw_debug(game_surface)
             window_surface.blit(background, (0, 0))
-            window_surface.blit(game_surface, (0, 0))
+            window_surface.blit(game_surface, game_surface_margin)
             manager.draw_ui(window_surface)
 
             pygame.display.update()
