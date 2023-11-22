@@ -18,5 +18,7 @@ def draw_player(surface, sphere: PlayerSphere):
 def draw_game(surface, state):
     for i in state['rotators']:
         draw_rotator_sphere(surface, i)
+    for i in state['spheres']:
+        draw_sphere(surface, i)
     for i in state['players']:
         draw_player(surface, i)

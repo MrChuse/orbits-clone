@@ -2,11 +2,13 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, Union
 import math
+import random
 
 import pygame
 from pygame import Vector2
 
 DEFAULT_SPEED = 2
+SPHERE_SIZE = 7
 PLAYER_SIZE = 10
 
 class Team(Enum):
@@ -148,6 +150,8 @@ class Game:
         self.player_spheres: list[PlayerSphere] = [self.s1, self.s2]
         self.spheres = []
         self.rotators = [self.rotator]
+        for i in range(10):
+            self.add_random_sphere()
 
     def set_dimensions(self, size):
         self.size = size
@@ -169,6 +173,13 @@ class Game:
         for action in actions:
             if action in self.keys_list:
                 self.actions_in_last_frame.append(self.keys_list.index(action))
+
+    def add_random_sphere(self):
+        self.spheres.append(Sphere(Vector2(random.randint(SPHERE_SIZE, self.size[0]-SPHERE_SIZE),
+                                           random.randint(SPHERE_SIZE, self.size[1]-SPHERE_SIZE)),
+                                   Vector2(0, 0),
+                                   SPHERE_SIZE,
+                                   (255,255,255)))
 
     def update(self, time_delta: float):
         # self.debug_surface.fill(pygame.Color('#00000000'))
