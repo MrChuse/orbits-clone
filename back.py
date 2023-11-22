@@ -47,6 +47,13 @@ class Sphere:
         raise TypeError('Can check center inside of only Sphere for now')
 
     def collide_with(self, other: 'Sphere'):
+            # pushout
+            dist = self.center.distance_to(other.center)
+            overlap = -(dist - self.radius - other.radius) * 0.5
+            self.center += overlap * (self.center - other.center).normalize()
+            other.center -= overlap * (self.center - other.center).normalize()
+
+            # elastic collision
             n = (other.center - self.center).normalize()
             k = self.velocity - other.velocity
             p = 2 * (n * k) / (self.mass + other.mass)
@@ -62,18 +69,41 @@ class RotatorSphere(Sphere):
         self.middle_sphere = Sphere(center, Vector2(0, 0), radius/20, (100, 100, 100))
 
 class PlayerSphere(Sphere):
+    max_dodge_duration = 30
+    cooldown_duration = 30
+    dodge_speed = 1.5
     def __init__(self, center, velocity, radius, color):
         super().__init__(center, velocity, radius, color)
         self.rotating_around : Optional[RotatorSphere] = None
+        self.dodge_initiated = False
+        self.frames_from_dodge = 0
+
+    def is_dodging(self):
+        return 0 < self.frames_from_dodge <= self.max_dodge_duration
+    def is_dodge_cooldown(self):
+        return self.max_dodge_duration < self.frames_from_dodge < self.max_dodge_duration + self.cooldown_duration
+    def can_dodge(self):
+        return self.frames_from_dodge == 0
 
     def update(self):
         if self.rotating_around is None:
-            super().update()
+            if self.dodge_initiated:
+                self.frames_from_dodge = 1
+                self.dodge_initiated = False
+            if self.is_dodging():
+                self.center += self.velocity * self.dodge_speed
+                self.frames_from_dodge += 1
+            elif self.is_dodge_cooldown():
+                self.frames_from_dodge += 1
+                self.center += self.velocity
+            else:
+                self.frames_from_dodge = 0
+                self.center += self.velocity
         else:
             me_rotator_vector = self.rotating_around.center - self.center
             angle = me_rotator_vector.angle_to(self.velocity)
             delta_angle = 360 * DEFAULT_SPEED / (2 * math.pi * me_rotator_vector.magnitude())
-            old_angle = angle
+            # old_angle = angle
             while angle > 180: angle -= 360
             while angle < -180: angle += 360
             # print(old_angle, angle)
@@ -116,7 +146,7 @@ class Game:
         self.s1 = PlayerSphere(Vector2(500, 100 + 20 * math.cos(45/180*math.pi)), Vector2(-DEFAULT_SPEED, 0), PLAYER_SIZE, Team.RED.value)
         self.s2 = PlayerSphere(Vector2(100, 200), Vector2(DEFAULT_SPEED, 0), PLAYER_SIZE, Team.BLUE.value)
         self.player_spheres: list[PlayerSphere] = [self.s1, self.s2]
-        self.spheres = [self.s1, self.s2]
+        self.spheres = []
         self.rotators = [self.rotator]
 
     def set_dimensions(self, size):
@@ -146,35 +176,47 @@ class Game:
             for player in self.actions_in_last_frame:
                 player_sphere = self.player_spheres[player]
                 for rotator in self.rotators:
-                    if player_sphere.check_center_inside(rotator):
+                    if player_sphere.check_center_inside(rotator) and not player_sphere.is_dodging():
                         if player_sphere.rotating_around is None:
                             player_sphere.rotating_around = rotator
                         else:
                             player_sphere.rotating_around = None
+                        break
+                else:
+                    if player_sphere.can_dodge():
+                        player_sphere.dodge_initiated = True
+
 
         self.s1.update()
         self.s2.update()
 
-        for index, sphere in enumerate(self.spheres, 1):
+        for index, sphere in enumerate(self.player_spheres, 1):
             if sphere.check_collision(self.topwall):
                 sphere.velocity.y *= -1
+                sphere.rotating_around = None
             if sphere.check_collision(self.bottomwall):
                 sphere.velocity.y *= -1
+                sphere.rotating_around = None
             if sphere.check_collision(self.leftwall):
                 sphere.velocity.x *= -1
+                sphere.rotating_around = None
             if sphere.check_collision(self.rightwall):
                 sphere.velocity.x *= -1
+                sphere.rotating_around = None
 
-            for sphere_to_check in self.spheres[index:]:
+            for sphere_to_check in self.player_spheres[index:]:
                 if sphere.check_collision(sphere_to_check):
                     sphere.rotating_around = None
                     sphere_to_check.rotating_around = None
-                    sphere.collide_with(sphere_to_check)
-                    sphere.velocity.scale_to_length(DEFAULT_SPEED)
+                    if not sphere.is_dodging() and not sphere_to_check.is_dodging():
+                        sphere.collide_with(sphere_to_check)
+        for i in self.player_spheres:
+            i.velocity.scale_to_length(DEFAULT_SPEED)
         return self.debug_surface
 
     def get_state(self):
         return {'rotators': self.rotators,
+                'players': self.player_spheres,
                 'spheres': self.spheres,}
 
     def draw_debug(self, debug_surface: pygame.Surface):
