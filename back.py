@@ -61,7 +61,8 @@ class Sphere:
     velocity: Vector2
     radius: float
     color: tuple[int, int, int]
-    mass : float = 1
+    mass: float = 1
+    damping_factor: float = 1
 
     def get_rect(self):
         return self.center.x-self.radius, self.center.y-self.radius, self.radius*2, self.radius*2
@@ -96,6 +97,7 @@ class Sphere:
 
     def update(self):
         self.center += self.velocity
+        self.velocity *= self.damping_factor
 
 class RotatorSphere(Sphere):
     def __init__(self, center, radius):
@@ -112,8 +114,9 @@ class PlayerSphere(Sphere):
         self.rotating_around : Optional[RotatorSphere] = None
         self.dodge_initiated = False
         self.frames_from_dodge = 0
-        self.path = deque(maxlen=self.path_size_per_trail_sphere)
+        self.path : deque[Vector2] = deque(maxlen=self.path_size_per_trail_sphere)
         self.trail : list[Sphere] = []
+        self.queue_to_trail : list[Sphere] = []
         self.alive = True
 
     def is_dodging(self):
@@ -123,12 +126,21 @@ class PlayerSphere(Sphere):
     def can_dodge(self):
         return self.frames_from_dodge == 0
 
-    def add_sphere(self, sphere: Sphere):
-        sphere.color = self.color
-        self.trail.append(sphere)
-        self.path = deque(self.path, maxlen=(len(self.trail)+1) * self.path_size_per_trail_sphere) # type: ignore
+    def add_sphere_to_queue(self, sphere: Sphere):
+        print('added to queue', sphere.color)
+        self.queue_to_trail.append(sphere)
+        self.path = deque(self.path, maxlen=(len(self.trail)+len(self.queue_to_trail)+1) * self.path_size_per_trail_sphere) # type: ignore
 
-    def get_sphere_position(self, i):
+    def add_sphere_to_trail(self, sphere: Sphere):
+        self.trail.append(sphere)
+        sphere.color = self.color
+
+    def remove_sphere(self):
+        sphere = self.trail.pop(0)
+        self.path = deque(self.path, maxlen=(len(self.trail)+1) * self.path_size_per_trail_sphere) # type: ignore
+        return sphere
+
+    def get_sphere_position(self, i) -> Vector2:
         try:
             return self.path[self.path_size_per_trail_sphere * i - 1]
         except IndexError:
@@ -169,11 +181,19 @@ class PlayerSphere(Sphere):
             self.velocity.scale_to_length(DEFAULT_SPEED)
             # super().update(debug_surface)
         for i, sphere in enumerate(self.trail, 1):
-            sphere.center = self.get_sphere_position(i)
-        self.path.append(Vector2(self.center))
+            sphere.center = sphere.center.move_towards(self.get_sphere_position(i), DEFAULT_SPEED*3)
+        for i, sphere in enumerate(self.queue_to_trail, len(self.trail)):
+            sphere.center = sphere.center.move_towards(self.get_sphere_position(i), DEFAULT_SPEED*3)
+            if sphere.center == self.get_sphere_position(i):
+                self.add_sphere_to_trail(sphere)
+                self.queue_to_trail.remove(sphere)
+        self.path.appendleft(Vector2(self.center))
 
     def draw_debug(self, debug_surface: pygame.Surface):
         pygame.draw.line(debug_surface, (255,255,255), self.center, self.center+self.velocity*20, width=3)
+        pygame.draw.circle(debug_surface, (255, 255, 255), self.path[0], 5)
+        pygame.draw.circle(debug_surface, (255, 255, 255), self.path[-1], 5)
+        pygame.draw.circle(debug_surface, (0, 0, 0), self.path[-1], 3)
         if self.rotating_around:
             pygame.draw.line(debug_surface, (255,0,0), self.center, self.rotating_around.center, width=3)
             me_rotator_vector = self.rotating_around.center - self.center
@@ -199,7 +219,6 @@ class Game:
         global DEFAULT_SPEED
         DEFAULT_SPEED *= min_dimension
 
-        self.rotator = RotatorSphere(Vector2(300, 150), 150)
         player_size = PLAYER_SIZE * min_dimension
         self.player_spheres: list[PlayerSphere] = []
         keys = []
@@ -215,7 +234,17 @@ class Game:
         self.register_players_and_keys(keys)
         self.someone_won = False
         self.spheres = []
-        self.rotators = [self.rotator]
+        rot_size = ROTATOR_SIZE * min_dimension
+        self.rotators = [
+            RotatorSphere(Vector2(0.15*size[0], 0.25*size[1]), rot_size),
+            RotatorSphere(Vector2(0.5*size[0], 0.25*size[1]), rot_size),
+            RotatorSphere(Vector2(0.85*size[0], 0.25*size[1]), rot_size),
+            RotatorSphere(Vector2(0.33*size[0], 0.5*size[1]), rot_size),
+            RotatorSphere(Vector2(0.66*size[0], 0.5*size[1]), rot_size),
+            RotatorSphere(Vector2(0.15*size[0], 0.75*size[1]), rot_size),
+            RotatorSphere(Vector2(0.5*size[0], 0.75*size[1]), rot_size),
+            RotatorSphere(Vector2(0.85*size[0], 0.75*size[1]), rot_size),
+        ]
         for i in range(10):
             self.add_random_sphere()
 
@@ -233,6 +262,7 @@ class Game:
         self.num_players = len(keys_list)
         self.keys_list = keys_list
         self.actions_in_last_frame = []
+        self.attacking_spheres : list[list[Sphere]] = [[] for _ in range(self.num_players)]
 
     def process_actions(self, actions):
         self.actions_in_last_frame: list[int] = []
@@ -253,8 +283,22 @@ class Game:
                                    sphere_size,
                                    (255,255,255)))
 
+    def check_wall_collision(self, sphere: Sphere):
+        if sphere.check_collision(self.topwall):
+            sphere.velocity.y *= -1
+            return True
+        if sphere.check_collision(self.bottomwall):
+            sphere.velocity.y *= -1
+            return True
+        if sphere.check_collision(self.leftwall):
+            sphere.velocity.x *= -1
+            return True
+        if sphere.check_collision(self.rightwall):
+            sphere.velocity.x *= -1
+            return True
+
     def update(self, time_delta: float):
-        # self.debug_surface.fill(pygame.Color('#00000000'))
+        # perform actions
         if self.actions_in_last_frame is not None:
             for player in self.actions_in_last_frame:
                 player_sphere = self.player_spheres[player]
@@ -266,31 +310,38 @@ class Game:
                             player_sphere.rotating_around = None
                         break
                 else:
+                    # not in a rotator
                     if player_sphere.can_dodge():
                         player_sphere.dodge_initiated = True
+                        if len(player_sphere.trail) > 0:
+                            attacking_sphere = player_sphere.remove_sphere()
+                            attacking_sphere.velocity = player_sphere.velocity * 2
+                            attacking_sphere.damping_factor = 1
+                            self.attacking_spheres[player].append(attacking_sphere)
 
+        # update positions and wall collisions
         for i in self.player_spheres:
+            if not i.alive: continue
+            if self.check_wall_collision(i):
+                i.rotating_around = None
+            i.update()
+        for players_spheres in self.attacking_spheres:
+            for i in players_spheres:
+                if self.check_wall_collision(i):
+                    i.color = (255, 255, 255)
+                    self.spheres.append(i)
+                    players_spheres.remove(i)
+                    i.damping_factor = 0.98
+                i.update()
+        for i in self.spheres:
+            self.check_wall_collision(i)
             i.update()
 
-        for index, sphere in enumerate(self.player_spheres, 1):
+        # other collisions
+        for index, sphere in enumerate(self.player_spheres):
             if not sphere.alive: continue
-
-            # walls
-            if sphere.check_collision(self.topwall):
-                sphere.velocity.y *= -1
-                sphere.rotating_around = None
-            if sphere.check_collision(self.bottomwall):
-                sphere.velocity.y *= -1
-                sphere.rotating_around = None
-            if sphere.check_collision(self.leftwall):
-                sphere.velocity.x *= -1
-                sphere.rotating_around = None
-            if sphere.check_collision(self.rightwall):
-                sphere.velocity.x *= -1
-                sphere.rotating_around = None
-
             # other players
-            for sphere_to_check in self.player_spheres[index:]:
+            for sphere_to_check in self.player_spheres[index+1:]:
                 if not sphere_to_check.alive: continue
                 if sphere.check_collision(sphere_to_check):
                     sphere.rotating_around = None
@@ -305,7 +356,18 @@ class Game:
                 for sphere_to_check in other_player.trail:
                     if sphere.check_collision(sphere_to_check) and not sphere.is_dodging():
                         for sphere_to_pop in sphere.trail:
-                            other_player.add_sphere(sphere_to_pop)
+                            other_player.add_sphere_to_queue(sphere_to_pop)
+                        sphere.trail = []
+                        sphere.alive = False
+
+            # attacking spheres
+            for index2, players_spheres in enumerate(self.attacking_spheres):
+                if index == index2: continue # this players' spheres
+                for sphere_to_check in players_spheres:
+                    if sphere.check_collision(sphere_to_check) and not sphere.is_dodging():
+                        other_player = self.player_spheres[index2]
+                        for sphere_to_pop in sphere.trail:
+                            other_player.add_sphere_to_queue(sphere_to_pop)
                         sphere.trail = []
                         sphere.alive = False
 
@@ -313,7 +375,7 @@ class Game:
             for sphere_to_check in self.spheres:
                 if sphere.check_collision(sphere_to_check):
                     if not sphere.is_dodging():
-                        sphere.add_sphere(sphere_to_check)
+                        sphere.add_sphere_to_queue(sphere_to_check)
                         self.spheres.remove(sphere_to_check)
                         self.add_random_sphere()
 
@@ -327,7 +389,8 @@ class Game:
         return {'rotators': self.rotators,
                 'players': self.player_spheres,
                 'spheres': self.spheres,
-                'someone_won': self.someone_won}
+                'someone_won': self.someone_won,
+                'attacking_spheres': self.attacking_spheres}
 
     def draw_debug(self, debug_surface: pygame.Surface):
         for i in self.player_spheres:
