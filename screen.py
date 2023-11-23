@@ -46,7 +46,6 @@ class Screen:
 def inscribed_rectangle_dimensions(w, h):
     vertical_side = min(w, h / 2)
     horizontal_side = min(w / 2, h)
-    print(horizontal_side, vertical_side)
     if horizontal_side > vertical_side:
         return 2 * horizontal_side, horizontal_side
     else:
@@ -104,7 +103,7 @@ class GameScreen(Screen):
 
                 state = self.game.get_state()
                 draw_game(self.game_surface, state)
-            # game.draw_debug(game_surface)
+                # self.game.draw_debug(self.game_surface)
             self.surface.blit(self.game_surface, self.game_surface_margin)
             self.manager.draw_ui(self.surface)
     # finally:
