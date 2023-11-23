@@ -4,6 +4,7 @@ import pygame
 import pygame.freetype
 pygame.freetype.init()
 import pygame_gui
+from pygame_gui.elements import UIButton
 
 from back import Game, Team
 from front import draw_game
@@ -14,6 +15,7 @@ class Screen:
     def __init__(self, surface: pygame.Surface):
         self.surface = surface
         self.return_value = None
+        self.force_quit = False
 
     def before_main_loop(self):
         return
@@ -34,6 +36,7 @@ class Screen:
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
+                    self.force_quit = True
                     self.is_running = False
                 self.process_events(event)
 
@@ -158,3 +161,33 @@ class PickColorScreen(Screen):
             i = self.order.index(key)
             pygame.draw.ellipse(self.surface, team.value, (100+100*(2*i//len(Team)), 100 + 60*(i%(len(Team)//2)), 25, 25))
             font.render_to(self.surface, (130+100*(2*i//len(Team)), 100 + 60 * (i%(len(Team)//2)), 25, 25), pygame.key.name(key), team.value)
+
+
+class LocalOnlinePickerScreen(Screen):
+    def __init__(self, surface: pygame.Surface):
+        super().__init__(surface)
+        self.manager = pygame_gui.UIManager(surface.get_rect().size)
+        rect1 = pygame.Rect(surface.get_rect())
+        rect1 = rect1.inflate(-200, -200)
+        rect1.height /= 2
+        self.local_button = UIButton(rect1, 'Local', manager=self.manager,)
+        rect2 = pygame.Rect((0, 0), rect1.size)
+        # rect2.bottomright = -100, -100
+        self.online_button = UIButton(rect2, 'Online', manager=self.manager,
+                                      anchors={'centerx': 'centerx',
+                                            'top_target': self.local_button})
+
+    def process_events(self, event):
+        self.manager.process_events(event)
+        if event.type == pygame_gui.UI_BUTTON_PRESSED:
+            if event.ui_element == self.local_button:
+                self.return_value = 'local'
+                self.is_running = False
+            elif event.ui_element == self.online_button:
+                self.return_value = 'online'
+                self.is_running = False
+
+    def update(self, time_delta):
+        self.manager.update(time_delta)
+        self.manager.draw_ui(self.surface)
+

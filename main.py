@@ -2,7 +2,7 @@ from traceback import print_exc
 
 import pygame
 
-from screen import GameScreen, PickColorScreen
+from screen import GameScreen, PickColorScreen, LocalOnlinePickerScreen
 
 # from config import load_settings
 # from forestry import NotEnoughResourcesError
@@ -22,10 +22,20 @@ def main():
     if settings['fullscreen']:
         window_surface = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
     else:
-        window_surface = pygame.display.set_mode((800, 500), pygame.RESIZABLE)
+        window_surface = pygame.display.set_mode((800, 300), pygame.RESIZABLE)
 
-    colors = PickColorScreen(window_surface).main()
-    GameScreen(window_surface, colors).main()
+    lop = LocalOnlinePickerScreen(window_surface)
+    is_local = lop.main()
+    if lop.force_quit:
+        return
+    if is_local == 'local':
+        pcs = PickColorScreen(window_surface)
+        colors = pcs.main()
+        if pcs.force_quit:
+            return
+        GameScreen(window_surface, colors).main()
+    elif is_local == 'online':
+        pass
 
 
 if __name__ == '__main__':
