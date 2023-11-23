@@ -26,7 +26,7 @@ SPHERE_SIZE = REFERENCE_SPHERE_SIZE / REFERENCE_SCREEN_SIZE / 2
 
 
 
-DEFAULT_SPEED = 2
+DEFAULT_SPEED = 2 / 400
 # SPHERE_SIZE = 7
 # PLAYER_SIZE = 10
 
@@ -195,6 +195,10 @@ class Game:
     def __init__(self, size, colors: dict[int, Team]) -> None:
         self.set_dimensions(size)
         min_dimension = min(size)
+
+        global DEFAULT_SPEED
+        DEFAULT_SPEED *= min_dimension
+
         self.rotator = RotatorSphere(Vector2(300, 150), 150)
         player_size = PLAYER_SIZE * min_dimension
         self.player_spheres: list[PlayerSphere] = []

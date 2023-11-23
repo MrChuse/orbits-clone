@@ -17,7 +17,7 @@ from screen import GameScreen, PickColorScreen
 def main():
     pygame.init()
     pygame.display.set_caption('Orbits clone')
-    settings = {'fullscreen': False,
+    settings = {'fullscreen': True,
                 'language': 'en'}
     if settings['fullscreen']:
         window_surface = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
