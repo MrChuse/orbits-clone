@@ -31,8 +31,21 @@ DEFAULT_SPEED = 2
 # PLAYER_SIZE = 10
 
 class Team(Enum):
-    RED = (255, 40, 40)
-    BLUE = (40, 40, 255)
+    RED = (255, 90, 40)
+    GREEN = (40, 255, 40)
+    BLUE = (63, 80, 255)
+    DARKRED = (190, 0, 0)
+    DARKGREEN = (25, 93, 42)
+
+    YELLOW = (255, 255, 40)
+    PINK = (255, 40, 255)
+    SKY = (40, 255, 255)
+    PURPLE = (142, 70, 172)
+
+    ORANGE = (255, 130, 1)
+    BROWN = (128, 64, 64)
+    INDIGO = (70, 0, 148)
+
 
 @dataclass
 class VerticalLine:
@@ -113,7 +126,7 @@ class PlayerSphere(Sphere):
     def add_sphere(self, sphere: Sphere):
         sphere.color = self.color
         self.trail.append(sphere)
-        self.path = deque(self.path, maxlen=(len(self.trail)+1) * self.path_size_per_trail_sphere)
+        self.path = deque(self.path, maxlen=(len(self.trail)+1) * self.path_size_per_trail_sphere) # type: ignore
 
     def get_sphere_position(self, i):
         try:
@@ -179,13 +192,23 @@ class PlayerSphere(Sphere):
 
 
 class Game:
-    def __init__(self, size) -> None:
+    def __init__(self, size, colors: dict[int, Team]) -> None:
         self.set_dimensions(size)
         min_dimension = min(size)
         self.rotator = RotatorSphere(Vector2(300, 150), 150)
-        self.s1 = PlayerSphere(Vector2(500, 100 + 20 * math.cos(45/180*math.pi)), Vector2(-DEFAULT_SPEED, 0), PLAYER_SIZE * min_dimension, Team.RED.value)
-        self.s2 = PlayerSphere(Vector2(100, 200), Vector2(DEFAULT_SPEED, 0), PLAYER_SIZE * min_dimension, Team.BLUE.value)
-        self.player_spheres: list[PlayerSphere] = [self.s1, self.s2]
+        player_size = PLAYER_SIZE * min_dimension
+        self.player_spheres: list[PlayerSphere] = []
+        keys = []
+        for key, team in colors.items():
+            vel = Vector2()
+            vel.from_polar((DEFAULT_SPEED, random.randint(0, 360)))
+            ps = PlayerSphere(Vector2(self.get_random_spawn_position(player_size)),
+                              vel,
+                              player_size,
+                              team.value)
+            self.player_spheres.append(ps)
+            keys.append(key)
+        self.register_players_and_keys(keys)
         self.someone_won = False
         self.spheres = []
         self.rotators = [self.rotator]
@@ -212,11 +235,16 @@ class Game:
         for action in actions:
             if action in self.keys_list:
                 self.actions_in_last_frame.append(self.keys_list.index(action))
+        # if len(actions) > 0:
+        #     print(actions, self.actions_in_last_frame)
+
+    def get_random_spawn_position(self, radius):
+        return (random.randint(int(radius), self.size[0]-int(radius)),
+                random.randint(int(radius), self.size[1]-int(radius)))
 
     def add_random_sphere(self):
         sphere_size = SPHERE_SIZE * min(self.size)
-        self.spheres.append(Sphere(Vector2(random.randint(int(sphere_size), self.size[0]-int(sphere_size)),
-                                           random.randint(int(sphere_size), self.size[1]-int(sphere_size))),
+        self.spheres.append(Sphere(Vector2(self.get_random_spawn_position(sphere_size)),
                                    Vector2(0, 0),
                                    sphere_size,
                                    (255,255,255)))
@@ -241,6 +269,8 @@ class Game:
             i.update()
 
         for index, sphere in enumerate(self.player_spheres, 1):
+            if not sphere.alive: continue
+
             # walls
             if sphere.check_collision(self.topwall):
                 sphere.velocity.y *= -1
@@ -269,7 +299,7 @@ class Game:
                 if sphere == other_player:
                     continue
                 for sphere_to_check in other_player.trail:
-                    if sphere.check_collision(sphere_to_check):
+                    if sphere.check_collision(sphere_to_check) and not sphere.is_dodging():
                         for sphere_to_pop in sphere.trail:
                             other_player.add_sphere(sphere_to_pop)
                         sphere.trail = []
@@ -296,5 +326,5 @@ class Game:
                 'someone_won': self.someone_won}
 
     def draw_debug(self, debug_surface: pygame.Surface):
-        self.s1.draw_debug(debug_surface)
-        self.s2.draw_debug(debug_surface)
+        for i in self.player_spheres:
+            i.draw_debug(debug_surface)
