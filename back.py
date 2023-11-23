@@ -127,7 +127,6 @@ class PlayerSphere(Sphere):
         return self.frames_from_dodge == 0
 
     def add_sphere_to_queue(self, sphere: Sphere):
-        print('added to queue', sphere.color)
         self.queue_to_trail.append(sphere)
         self.path = deque(self.path, maxlen=(len(self.trail)+len(self.queue_to_trail)+1) * self.path_size_per_trail_sphere) # type: ignore
 
