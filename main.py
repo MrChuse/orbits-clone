@@ -54,7 +54,8 @@ def main():
             if cpcs.force_quit:
                 return
             colors, sock, server = result
-            ClientGameScreen(window_surface, colors, sock, server)
+            cgs = ClientGameScreen(window_surface, colors, sock, server)
+            cgs.main()
 
 
 if __name__ == '__main__':

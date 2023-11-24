@@ -79,10 +79,6 @@ class ClientPickColorScreen(PickColorScreen):
         for key in to_delete:
             del self.key_map[key]
 
-    def clean_up(self):
-        self.sock.close()
-        self.server.shutdown()
-
     def process_events(self, event):
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_SPACE:
@@ -114,3 +110,12 @@ class ClientGameScreen(GameScreen):
         print('shutdown')
         self.server.shutdown()
         self.sock.close()
+
+    def update(self, time_delta):
+        for key in self.actions:
+            print(self.sock, key)
+            send_int(self.sock, key)
+        for key, team in self.server.captured_keys:
+            self.actions.append(key)
+        self.server.captured_keys = []
+        super().update(time_delta)

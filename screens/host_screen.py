@@ -64,10 +64,8 @@ class HostPickColorScreen(PickColorScreen):
     def on_connect(self, sock: socket.socket):
         print('on connect')
         send_int(sock, len(self.key_map))
-        print(len(self.key_map), 'players')
         l = list(Team)
         for key, (team, name) in self.key_map.items():
-            print('trying to send', key, l.index(team))
             send_int(sock, key)
             send_int(sock, l.index(team))
 
@@ -109,10 +107,24 @@ class HostPickColorScreen(PickColorScreen):
 class HostGameScreen(GameScreen):
     def __init__(self, surface: pygame.Surface, colors, server):
         super().__init__(surface, colors)
-        self.server: socketserver.ThreadingTCPServer = server
+        self.server: HostThreadingTCPServer = server
 
     def clean_up(self):
         print('shutdown')
         self.server.shutdown()
         for sock in self.server.client_sockets:
             sock.close()
+
+    def update(self, time_delta):
+        # host's presses
+        for key in self.actions:
+            for sock in self.server.client_sockets:
+                send_int(sock, key)
+        # clients' presses
+        for client_id, key, name in self.server.client_captures:
+            for id, sock in enumerate(self.server.client_sockets):
+                if client_id != id:
+                    send_int(sock, key)
+                self.actions.append(key)
+        self.server.client_captures = []
+        super().update(time_delta)

@@ -227,15 +227,20 @@ map1 = Map([
 ])
 
 class Game:
-    def __init__(self, colors: dict[int, Team]) -> None:
+    def __init__(self, colors: dict[int, Team], seed=None) -> None:
         size = (2, 1)
         self.set_dimensions(size)
+
+        self.seed = seed
+        if self.seed is None:
+            self.seed = random.randint(0, 1000000000)
+        self.random = random.Random(self.seed)
 
         self.player_spheres: list[PlayerSphere] = []
         keys = []
         for key, (team, name) in colors.items():
             vel = Vector2()
-            vel.from_polar((DEFAULT_SPEED, random.randint(0, 360)))
+            vel.from_polar((DEFAULT_SPEED, self.random.randint(0, 360)))
             ps = PlayerSphere(Vector2(self.get_random_spawn_position(PLAYER_SIZE)),
                               vel,
                               PLAYER_SIZE,
@@ -279,8 +284,8 @@ class Game:
         #     print(actions, self.actions_in_last_frame)
 
     def get_random_spawn_position(self, radius):
-        return (random.uniform(radius, self.size[0]-radius),
-                random.uniform(radius, self.size[1]-radius))
+        return (self.random.uniform(radius, self.size[0]-radius),
+                self.random.uniform(radius, self.size[1]-radius))
 
     def add_random_sphere(self):
         self.spheres.append(Sphere(Vector2(self.get_random_spawn_position(SPHERE_SIZE)),
