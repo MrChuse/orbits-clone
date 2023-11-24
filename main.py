@@ -2,7 +2,9 @@ from traceback import print_exc
 
 import pygame
 
-from screen import GameScreen, PickColorScreen, LocalOnlinePickerScreen
+from screens import (GameScreen, PickColorScreen, LocalOnlinePickerScreen,
+                    HostPickColorScreen, ClientPickColorScreen,
+                    HostGameScreen, ClientGameScreen)
 
 # from config import load_settings
 # from forestry import NotEnoughResourcesError
@@ -25,7 +27,7 @@ def main():
         window_surface = pygame.display.set_mode((800, 300), pygame.RESIZABLE)
 
     lop = LocalOnlinePickerScreen(window_surface)
-    is_local = lop.main()
+    is_local: str = lop.main() # type: ignore
     if lop.force_quit:
         return
     if is_local == 'local':
@@ -34,8 +36,25 @@ def main():
         if pcs.force_quit:
             return
         GameScreen(window_surface, colors).main()
-    elif is_local == 'online':
-        pass
+    elif is_local.startswith('online'):
+        parts = is_local.split()
+        print(parts)
+        if len(parts) == 2 and parts[1] == 'host':
+            hpcs = HostPickColorScreen(window_surface)
+            result = hpcs.main()
+            if hpcs.force_quit:
+                return
+            colors, server = result
+            hgs = HostGameScreen(window_surface, colors, server)
+            hgs.main()
+
+        elif len(parts) == 3 and parts[1] == 'client':
+            cpcs = ClientPickColorScreen(window_surface, parts[2])
+            result = cpcs.main()
+            if cpcs.force_quit:
+                return
+            colors, sock, server = result
+            ClientGameScreen(window_surface, colors, sock, server)
 
 
 if __name__ == '__main__':

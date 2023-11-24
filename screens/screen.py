@@ -1,10 +1,20 @@
+# from _socket import _RetAddress
+from collections.abc import Callable
+import socket
+import socketserver
+# from socketserver import _AfInetAddress,BaseRequestHandler
+from socketserver import BaseRequestHandler
+import threading
 from traceback import print_exc
+from collections import deque
+from typing import Any
 
 import pygame
 import pygame.freetype
 pygame.freetype.init()
 import pygame_gui
-from pygame_gui.elements import UIButton
+from pygame_gui.elements import UIButton, UITextEntryLine
+from pygame_gui.windows import UIMessageWindow
 
 from back import Game, Team
 from front import draw_game
@@ -17,7 +27,7 @@ class Screen:
         self.return_value = None
         self.force_quit = False
 
-    def before_main_loop(self):
+    def clean_up(self):
         return
     def process_events(self, event):
         return
@@ -43,6 +53,7 @@ class Screen:
             self.surface.blit(background, (0, 0))
             self.update(time_delta)
             pygame.display.update()
+        self.clean_up()
         return self.return_value
 
 
@@ -121,6 +132,7 @@ class PickColorScreen(Screen):
         self.key_team_iter_map = {}
         self.unavailable_teams = []
         self.order = []
+        self.captured_keys = []
 
     def process_events(self, event):
         if event.type == pygame.KEYDOWN:
@@ -129,38 +141,43 @@ class PickColorScreen(Screen):
                     self.return_value = self.key_map
                     self.is_running = False
             else:
-                if event.key not in self.key_team_iter_map:
-                    self.key_team_iter_map[event.key] = iter(Team)
+                self.captured_keys.append((event.key, pygame.key.name(event.key)))
 
-                if event.key in self.key_map:
-                    team = self.key_map.pop(event.key)
-                    self.unavailable_teams.remove(team)
-                elif len(self.unavailable_teams) < len(Team):
-                    found_team = False
-                    team = None
-                    while not found_team:
-                        try:
-                            team = next(self.key_team_iter_map[event.key])
-                            if team in self.unavailable_teams:
-                                continue
-                            self.key_map[event.key] = team
-                            self.unavailable_teams.append(team)
-                            break
-                        except StopIteration:
-                            self.key_team_iter_map[event.key] = iter(Team)
-                    if event.key not in self.order:
-                        self.order.append(event.key)
+    def process_player_action(self, key, name):
+        if key not in self.key_team_iter_map:
+            self.key_team_iter_map[key] = iter(Team)
+        if key in self.key_map:
+            team, name = self.key_map.pop(key)
+            self.unavailable_teams.remove(team)
+        elif len(self.unavailable_teams) < len(Team):
+            team = None
+            while True:
+                try:
+                    team = next(self.key_team_iter_map[key])
+                    if team in self.unavailable_teams:
+                        continue
+                    self.key_map[key] = team, name
+                    self.unavailable_teams.append(team)
+                    break
+                except StopIteration:
+                    self.key_team_iter_map[key] = iter(Team)
+            if key not in self.order:
+                self.order.append(key)
 
     def update(self, time_delta):
+        for key, name in self.captured_keys:
+            self.process_player_action(key, name)
+        self.captured_keys = []
+
         size = self.surface.get_rect().size
         surf1, textsize1 = font.render('PRESS BUTTONS', (255, 255, 255), size=32)
         surf2, textsize2 = font.render('then hit space', (255, 255, 255), size=32)
         self.surface.blit(surf1, (30, 30))
         self.surface.blit(surf2, (30, size[1] - 30 - textsize2[1]))
-        for key, team in self.key_map.items():
+        for key, (team, name) in self.key_map.items():
             i = self.order.index(key)
             pygame.draw.ellipse(self.surface, team.value, (100+100*(2*i//len(Team)), 100 + 60*(i%(len(Team)//2)), 25, 25))
-            font.render_to(self.surface, (130+100*(2*i//len(Team)), 100 + 60 * (i%(len(Team)//2)), 25, 25), pygame.key.name(key), team.value)
+            font.render_to(self.surface, (130+100*(2*i//len(Team)), 100 + 60 * (i%(len(Team)//2)), 25, 25), name, team.value)
 
 
 class LocalOnlinePickerScreen(Screen):
@@ -176,6 +193,22 @@ class LocalOnlinePickerScreen(Screen):
         self.online_button = UIButton(rect2, 'Online', manager=self.manager,
                                       anchors={'centerx': 'centerx',
                                             'top_target': self.local_button})
+        rect3 = pygame.Rect(rect2)
+        rect3.left = rect1.left
+        rect3.width /= 2
+        self.host_button = UIButton(rect3, 'Host', self.manager, visible=False,
+                                    anchors={'top_target': self.local_button})
+        rect4 = pygame.Rect(rect3)
+        rect4.left = 0
+        rect4.height -= 30
+        self.client_button = UIButton(rect4, 'Connect', self.manager, visible=False,
+                                    anchors={'top_target': self.local_button,
+                                            'left_target':self.host_button})
+        self.placeholder_ip = '127.0.0.1'
+        self.client_text_entry = UITextEntryLine(pygame.Rect(0, 0, rect4.width, 30), self.manager,
+                                                 visible=False, placeholder_text=self.placeholder_ip,
+                                                 anchors={'top_target': self.client_button,
+                                                          'left_target':self.host_button})
 
     def process_events(self, event):
         self.manager.process_events(event)
@@ -184,10 +217,27 @@ class LocalOnlinePickerScreen(Screen):
                 self.return_value = 'local'
                 self.is_running = False
             elif event.ui_element == self.online_button:
-                self.return_value = 'online'
+                self.online_button.hide()
+                self.host_button.show()
+                self.client_button.show()
+                self.client_text_entry.show()
+            elif event.ui_element == self.host_button:
+                self.return_value = 'online host'
                 self.is_running = False
+            elif event.ui_element == self.client_button:
+                text = self.client_text_entry.text
+                if not text:
+                    text = self.placeholder_ip
+                try:
+                    socket.inet_aton(text)
+                except socket.error as e:
+                    rect = pygame.Rect(self.surface.get_rect())
+                    rect = rect.scale_by(0.5, 0.5)
+                    UIMessageWindow(rect, f'{text} is an invalid IPv4 address')
+                else:
+                    self.return_value = f'online client {text}'
+                    self.is_running = False
 
     def update(self, time_delta):
         self.manager.update(time_delta)
         self.manager.draw_ui(self.surface)
-
