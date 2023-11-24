@@ -387,8 +387,9 @@ class Game:
         for i in self.player_spheres:
             i.velocity.scale_to_length(DEFAULT_SPEED)
 
-        if len(self.player_spheres) == 1:
-            self.someone_won = True
+        winner = [p.color for p in self.player_spheres if p.alive]
+        if len(winner) == 1:
+            self.someone_won = winner[0]
 
     def get_state(self):
         return {'rotators': self.rotators,

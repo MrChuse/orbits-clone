@@ -1,4 +1,5 @@
 import pygame
+import pygame.freetype
 
 from back import Sphere, RotatorSphere, PlayerSphere
 
@@ -24,6 +25,7 @@ def draw_player(surface, sphere: PlayerSphere, game_size):
     for i in sphere.queue_to_trail:
         draw_sphere(surface, i, game_size)
 
+font = pygame.freetype.SysFont('arial', 25)
 def draw_game(surface, state, game_size):
     for i in state['rotators']:
         draw_rotator_sphere(surface, i, game_size)
@@ -34,3 +36,5 @@ def draw_game(surface, state, game_size):
             draw_sphere(surface, i, game_size)
     for i in state['players']:
         draw_player(surface, i, game_size)
+    if state['someone_won']:
+        font.render_to(surface, (30, 30, 100, 25), 'this color won', state['someone_won'])
