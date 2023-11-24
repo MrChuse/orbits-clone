@@ -209,6 +209,22 @@ class PlayerSphere(Sphere):
             new_rotator_me_vector = rotator_me_vector.rotate(delta_angle)
             pygame.draw.line(debug_surface, (255,255,0), self.rotating_around.center + new_rotator_me_vector, self.rotating_around.center, width=3)
 
+@dataclass
+class Map:
+    rotators_coords: list[tuple[float, float, float]]
+map1 = Map([
+    (0.1, 0.2, ROTATOR_SIZE),
+    (0.3666, 0.2, ROTATOR_SIZE),
+    (0.6333, 0.2, ROTATOR_SIZE),
+    (0.9, 0.2, ROTATOR_SIZE),
+    (0.2333, 0.5, ROTATOR_SIZE),
+    (0.5, 0.5, ROTATOR_SIZE),
+    (0.7666, 0.5, ROTATOR_SIZE),
+    (0.1, 0.8, ROTATOR_SIZE),
+    (0.4, 0.8, ROTATOR_SIZE),
+    (0.6, 0.8, ROTATOR_SIZE),
+    (0.9, 0.8, ROTATOR_SIZE),
+])
 
 class Game:
     def __init__(self, colors: dict[int, Team]) -> None:
@@ -217,7 +233,7 @@ class Game:
 
         self.player_spheres: list[PlayerSphere] = []
         keys = []
-        for key, team in colors.items():
+        for key, (team, name) in colors.items():
             vel = Vector2()
             vel.from_polar((DEFAULT_SPEED, random.randint(0, 360)))
             ps = PlayerSphere(Vector2(self.get_random_spawn_position(PLAYER_SIZE)),
@@ -229,21 +245,14 @@ class Game:
         self.register_players_and_keys(keys)
         self.someone_won = False
         self.spheres = []
-        self.rotators = [
-            RotatorSphere(Vector2(0.1*size[0], 0.2*size[1]), ROTATOR_SIZE),
-            RotatorSphere(Vector2(0.3666*size[0], 0.2*size[1]), ROTATOR_SIZE),
-            RotatorSphere(Vector2(0.6333*size[0], 0.2*size[1]), ROTATOR_SIZE),
-            RotatorSphere(Vector2(0.9*size[0], 0.2*size[1]), ROTATOR_SIZE),
-            RotatorSphere(Vector2(0.2333*size[0], 0.5*size[1]), ROTATOR_SIZE),
-            RotatorSphere(Vector2(0.5*size[0], 0.5*size[1]), ROTATOR_SIZE),
-            RotatorSphere(Vector2(0.7666*size[0], 0.5*size[1]), ROTATOR_SIZE),
-            RotatorSphere(Vector2(0.1*size[0], 0.8*size[1]), ROTATOR_SIZE),
-            RotatorSphere(Vector2(0.4*size[0], 0.8*size[1]), ROTATOR_SIZE),
-            RotatorSphere(Vector2(0.6*size[0], 0.8*size[1]), ROTATOR_SIZE),
-            RotatorSphere(Vector2(0.9*size[0], 0.8*size[1]), ROTATOR_SIZE),
-        ]
+        self.rotators = []
+        self.load_map(map1)
         for i in range(10):
             self.add_random_sphere()
+
+    def load_map(self, map_: Map):
+        for i in map_.rotators_coords:
+            self.rotators.append(RotatorSphere(Vector2(i[0]*self.size[0], i[1]*self.size[1]), i[2]))
 
     def set_dimensions(self, size):
         self.size = size
