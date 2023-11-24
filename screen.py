@@ -62,12 +62,12 @@ class GameScreen(Screen):
         self.window_size = self.surface.get_rect().size
         self.manager = pygame_gui.UIManager(self.window_size, 'theme.json', enable_live_theme_updates=False)
         self.visual_debug = False
-        game_size = inscribed_rectangle_dimensions(*self.window_size)
-        borderx = (self.window_size[0] - game_size[0]) / 2
-        bordery = (self.window_size[1] - game_size[1]) / 2
+        self.game_size = inscribed_rectangle_dimensions(*self.window_size)
+        borderx = (self.window_size[0] - self.game_size[0]) / 2
+        bordery = (self.window_size[1] - self.game_size[1]) / 2
         self.game_surface_margin = borderx, bordery
-        self.game = Game(game_size, colors)
-        self.game_surface = pygame.Surface(game_size)
+        self.game = Game(colors)
+        self.game_surface = pygame.Surface(self.game_size)
         self.is_paused = False
         self.by_step = False
         self.actions = []
@@ -105,7 +105,7 @@ class GameScreen(Screen):
                     self.by_step = False
 
                 state = self.game.get_state()
-                draw_game(self.game_surface, state)
+                draw_game(self.game_surface, state, self.game_size)
                 # self.game.draw_debug(self.game_surface)
             self.surface.blit(self.game_surface, self.game_surface_margin)
             self.manager.draw_ui(self.surface)

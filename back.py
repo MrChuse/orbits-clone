@@ -211,38 +211,36 @@ class PlayerSphere(Sphere):
 
 
 class Game:
-    def __init__(self, size, colors: dict[int, Team]) -> None:
+    def __init__(self, colors: dict[int, Team]) -> None:
+        size = (2, 1)
         self.set_dimensions(size)
-        min_dimension = min(size)
 
-        global DEFAULT_SPEED
-        DEFAULT_SPEED *= min_dimension
-
-        player_size = PLAYER_SIZE * min_dimension
         self.player_spheres: list[PlayerSphere] = []
         keys = []
         for key, team in colors.items():
             vel = Vector2()
             vel.from_polar((DEFAULT_SPEED, random.randint(0, 360)))
-            ps = PlayerSphere(Vector2(self.get_random_spawn_position(player_size)),
+            ps = PlayerSphere(Vector2(self.get_random_spawn_position(PLAYER_SIZE)),
                               vel,
-                              player_size,
+                              PLAYER_SIZE,
                               team.value)
             self.player_spheres.append(ps)
             keys.append(key)
         self.register_players_and_keys(keys)
         self.someone_won = False
         self.spheres = []
-        rot_size = ROTATOR_SIZE * min_dimension
         self.rotators = [
-            RotatorSphere(Vector2(0.15*size[0], 0.25*size[1]), rot_size),
-            RotatorSphere(Vector2(0.5*size[0], 0.25*size[1]), rot_size),
-            RotatorSphere(Vector2(0.85*size[0], 0.25*size[1]), rot_size),
-            RotatorSphere(Vector2(0.33*size[0], 0.5*size[1]), rot_size),
-            RotatorSphere(Vector2(0.66*size[0], 0.5*size[1]), rot_size),
-            RotatorSphere(Vector2(0.15*size[0], 0.75*size[1]), rot_size),
-            RotatorSphere(Vector2(0.5*size[0], 0.75*size[1]), rot_size),
-            RotatorSphere(Vector2(0.85*size[0], 0.75*size[1]), rot_size),
+            RotatorSphere(Vector2(0.1*size[0], 0.2*size[1]), ROTATOR_SIZE),
+            RotatorSphere(Vector2(0.3666*size[0], 0.2*size[1]), ROTATOR_SIZE),
+            RotatorSphere(Vector2(0.6333*size[0], 0.2*size[1]), ROTATOR_SIZE),
+            RotatorSphere(Vector2(0.9*size[0], 0.2*size[1]), ROTATOR_SIZE),
+            RotatorSphere(Vector2(0.2333*size[0], 0.5*size[1]), ROTATOR_SIZE),
+            RotatorSphere(Vector2(0.5*size[0], 0.5*size[1]), ROTATOR_SIZE),
+            RotatorSphere(Vector2(0.7666*size[0], 0.5*size[1]), ROTATOR_SIZE),
+            RotatorSphere(Vector2(0.1*size[0], 0.8*size[1]), ROTATOR_SIZE),
+            RotatorSphere(Vector2(0.4*size[0], 0.8*size[1]), ROTATOR_SIZE),
+            RotatorSphere(Vector2(0.6*size[0], 0.8*size[1]), ROTATOR_SIZE),
+            RotatorSphere(Vector2(0.9*size[0], 0.8*size[1]), ROTATOR_SIZE),
         ]
         for i in range(10):
             self.add_random_sphere()
@@ -272,14 +270,13 @@ class Game:
         #     print(actions, self.actions_in_last_frame)
 
     def get_random_spawn_position(self, radius):
-        return (random.randint(int(radius), self.size[0]-int(radius)),
-                random.randint(int(radius), self.size[1]-int(radius)))
+        return (random.uniform(radius, self.size[0]-radius),
+                random.uniform(radius, self.size[1]-radius))
 
     def add_random_sphere(self):
-        sphere_size = SPHERE_SIZE * min(self.size)
-        self.spheres.append(Sphere(Vector2(self.get_random_spawn_position(sphere_size)),
+        self.spheres.append(Sphere(Vector2(self.get_random_spawn_position(SPHERE_SIZE)),
                                    Vector2(0, 0),
-                                   sphere_size,
+                                   SPHERE_SIZE,
                                    (255,255,255)))
 
     def check_wall_collision(self, sphere: Sphere):
