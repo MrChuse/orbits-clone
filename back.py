@@ -571,6 +571,7 @@ class Game:
                 i.velocity.scale_to_length(DEFAULT_SPEED)
             if self.timer > 30:
                 self.restart_game()
+            self.timer += time_delta
 
 
     def get_state(self):

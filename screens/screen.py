@@ -52,6 +52,7 @@ class Screen:
 
             self.surface.blit(background, (0, 0))
             self.update(time_delta)
+            pygame.display.set_caption(f'Orbits clone | {clock.get_fps():.1f}')
             pygame.display.update()
         self.clean_up()
         return self.return_value
