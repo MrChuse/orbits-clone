@@ -221,24 +221,49 @@ map1 = Map([
     (0.5, 0.5, ROTATOR_SIZE),
     (0.7666, 0.5, ROTATOR_SIZE),
     (0.1, 0.8, ROTATOR_SIZE),
-    (0.4, 0.8, ROTATOR_SIZE),
-    (0.6, 0.8, ROTATOR_SIZE),
+    (0.3666, 0.8, ROTATOR_SIZE),
+    (0.6333, 0.8, ROTATOR_SIZE),
     (0.9, 0.8, ROTATOR_SIZE),
 ])
 
 class Game:
     def __init__(self, colors: dict[int, Team], seed=None) -> None:
         size = (2, 1)
-        self.set_dimensions(size)
+        self.size = size
+        self.leftwall = None
+        self.rightwall = None
+        self.topwall = None
+        self.bottomwall = None
+        self.debug_surface = None
+        self.set_dimensions(size) # set these things
 
+        self.colors = colors
+
+        self.rotators = []
+        self.load_map(map1)
+
+        self.seed = seed
+        self.random = None
+
+        self.player_spheres: list[PlayerSphere] = []
+        self.register_players_and_keys(self.colors.keys())
+        self.someone_won = False
+
+        self.restart_game(seed)
+
+
+    def load_map(self, map_: Map):
+        for i in map_.rotators_coords:
+            self.rotators.append(RotatorSphere(Vector2(i[0]*self.size[0], i[1]*self.size[1]), i[2]))
+
+    def restart_game(self, seed=None):
         self.seed = seed
         if self.seed is None:
             self.seed = random.randint(0, 1000000000)
         self.random = random.Random(self.seed)
 
-        self.player_spheres: list[PlayerSphere] = []
-        keys = []
-        for key, (team, name) in colors.items():
+        self.player_spheres = []
+        for key, (team, name) in self.colors.items():
             vel = Vector2()
             vel.from_polar((DEFAULT_SPEED, self.random.randint(0, 360)))
             ps = PlayerSphere(Vector2(self.get_random_spawn_position(PLAYER_SIZE)),
@@ -246,18 +271,12 @@ class Game:
                               PLAYER_SIZE,
                               team.value)
             self.player_spheres.append(ps)
-            keys.append(key)
-        self.register_players_and_keys(keys)
-        self.someone_won = False
+
         self.spheres = []
-        self.rotators = []
-        self.load_map(map1)
         for i in range(10):
             self.add_random_sphere()
 
-    def load_map(self, map_: Map):
-        for i in map_.rotators_coords:
-            self.rotators.append(RotatorSphere(Vector2(i[0]*self.size[0], i[1]*self.size[1]), i[2]))
+        self.someone_won = False
 
     def set_dimensions(self, size):
         self.size = size
@@ -398,10 +417,17 @@ class Game:
 
     def get_state(self):
         return {'rotators': self.rotators,
-                'players': self.player_spheres,
+                'player_spheres': self.player_spheres,
                 'spheres': self.spheres,
                 'someone_won': self.someone_won,
                 'attacking_spheres': self.attacking_spheres}
+
+    def set_state(self, state: dict):
+        self.rotators = state['rotators']
+        self.player_spheres = state['player_spheres']
+        self.spheres = state['spheres']
+        self.someone_won = state['someone_won']
+        self.attacking_spheres = state['attacking_spheres']
 
     def draw_debug(self, debug_surface: pygame.Surface):
         for i in self.player_spheres:

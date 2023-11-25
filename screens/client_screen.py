@@ -3,27 +3,33 @@ import socketserver
 from socketserver import BaseRequestHandler
 import threading
 from typing import Any, Callable
+import pickle
 
 import pygame
 
-from .host_screen import send_int
 from .screen import PickColorScreen, GameScreen
 from back import Team
-from .sock_helpers import recv_int, recv_player
+from .sock_helpers import recv_player, send_command, recv_command, Command
 
 class ClientThreadedTCPRequestHandler(BaseRequestHandler):
-
     def handle(self):
         print('handling with a client')
         self.server.on_connect(self.request)
         while True:
             try:
-                data = recv_int(self.request)
-                if data: # idk why 0 is there but this if is needed! (continue doesn't work too)
+                command, data = recv_command(self.request)
+                if command == Command.KEY:
                     self.server.captured_keys.append((data, f'host {pygame.key.name(data)}'))
-                # response = bytes('OK', 'ascii')
-                # self.request.sendall(response)
-                else:
+                elif command == Command.STR:
+                    self.server.captured_keys.append((data, f'host {pygame.key.name(data)}'))
+                    command, data = recv_command(self.request)
+                    assert command == Command.SEE
+                    self.server.seed = data
+                elif command == Command.STL:
+                    command, data = recv_command(self.request, data)
+                    assert command == Command.STT
+                    self.server.game_state = pickle.loads(data)
+                elif command == '':
                     break
             except ConnectionAbortedError as e:
                 self.server.on_disconnect(self.request)
@@ -35,6 +41,8 @@ class ClientThreadingTCPServer(socketserver.ThreadingTCPServer):
         self.captured_keys: list[tuple[int, str]] = []
         self.on_connect = on_connect
         self.on_disconnect = on_disconnect
+        self.seed = None
+        self.game_state = None
 
 class ClientPickColorScreen(PickColorScreen):
     def __init__(self, surface: pygame.Surface, host, port=9001):
@@ -56,12 +64,12 @@ class ClientPickColorScreen(PickColorScreen):
         print(f"Client {ip}:{port}, loop running in thread:", server_thread.name)
 
     def on_connect(self, sock):
-        print('on connect')
-        number_of_players = recv_int(sock)
+        command, number_of_players = recv_command(sock)
+        if command != Command.PLA:
+            print('error:', command, 'was not PLA')
         print(f'{number_of_players=}')
         for i in range(number_of_players):
             key, team = recv_player(sock)
-            print('received a player', key, team)
             self.key_team_iter_map[key] = iter(Team)
             iter_team = next(self.key_team_iter_map[key])
             while iter_team != team:
@@ -69,7 +77,6 @@ class ClientPickColorScreen(PickColorScreen):
             self.key_map[key] = team, f'host {pygame.key.name(key)}'
             self.unavailable_teams.append(team)
             self.order.append(key)
-        print(self.key_map)
 
     def on_disconnect(self, sock):
         to_delete = []
@@ -88,9 +95,10 @@ class ClientPickColorScreen(PickColorScreen):
                 pass
             else:
                 self.captured_keys.append((event.key, pygame.key.name(event.key)))
-                send_int(self.sock, event.key)
 
     def update(self, time_delta):
+        for key, name in self.captured_keys:
+            send_command(self.sock, Command.KEY, key)
         for key, team in self.server.captured_keys:
             if key == pygame.K_SPACE:
                 self.return_value = self.key_map, self.sock, self.server
@@ -101,10 +109,12 @@ class ClientPickColorScreen(PickColorScreen):
         super().update(time_delta)
 
 class ClientGameScreen(GameScreen):
-    def __init__(self, surface: pygame.Surface, colors, sock, server,):
-        super().__init__(surface, colors)
+    def __init__(self, surface: pygame.Surface, colors, sock, server: ClientThreadingTCPServer,):
+        if server.seed is None:
+            print('server.seed is None :(')
+        super().__init__(surface, colors, server.seed)
         self.sock: socket.socket = sock
-        self.server: socketserver.ThreadingTCPServer = server
+        self.server = server
 
     def clean_up(self):
         print('shutdown')
@@ -114,8 +124,11 @@ class ClientGameScreen(GameScreen):
     def update(self, time_delta):
         for key in self.actions:
             print(self.sock, key)
-            send_int(self.sock, key)
+            send_command(self.sock, Command.KEY, key)
         for key, team in self.server.captured_keys:
             self.actions.append(key)
         self.server.captured_keys = []
+        if self.server.game_state is not None:
+            self.game.set_state(self.server.game_state)
+            self.server.game_state = None
         super().update(time_delta)

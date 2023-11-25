@@ -66,7 +66,7 @@ def inscribed_rectangle_dimensions(w, h):
         return vertical_side, 2 * vertical_side
 
 class GameScreen(Screen):
-    def __init__(self, surface: pygame.Surface, colors):
+    def __init__(self, surface: pygame.Surface, colors, seed=None):
         super().__init__(surface)
         self.colors = colors
         self.game = None
@@ -77,7 +77,7 @@ class GameScreen(Screen):
         borderx = (self.window_size[0] - self.game_size[0]) / 2
         bordery = (self.window_size[1] - self.game_size[1]) / 2
         self.game_surface_margin = borderx, bordery
-        self.game = Game(colors)
+        self.game = Game(colors, seed)
         self.game_surface = pygame.Surface(self.game_size)
         self.is_paused = False
         self.by_step = False
@@ -136,12 +136,7 @@ class PickColorScreen(Screen):
 
     def process_events(self, event):
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_SPACE:
-                if len(self.key_map) >= 2:
-                    self.return_value = self.key_map
-                    self.is_running = False
-            else:
-                self.captured_keys.append((event.key, pygame.key.name(event.key)))
+            self.captured_keys.append((event.key, pygame.key.name(event.key)))
 
     def process_player_action(self, key, name):
         if key not in self.key_team_iter_map:
@@ -166,7 +161,13 @@ class PickColorScreen(Screen):
 
     def update(self, time_delta):
         for key, name in self.captured_keys:
-            self.process_player_action(key, name)
+            if key == pygame.K_SPACE:
+                if len(self.key_map) >= 2 and self.is_running:
+                    print(self.return_value)
+                    self.return_value = self.key_map
+                    self.is_running = False
+            else:
+                self.process_player_action(key, name)
         self.captured_keys = []
 
         size = self.surface.get_rect().size

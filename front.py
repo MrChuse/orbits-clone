@@ -34,7 +34,7 @@ def draw_game(surface, state, game_size):
     for players_spheres in state['attacking_spheres']:
         for i in players_spheres:
             draw_sphere(surface, i, game_size)
-    for i in state['players']:
+    for i in state['player_spheres']:
         draw_player(surface, i, game_size)
     if state['someone_won']:
         font.render_to(surface, (30, 30, 100, 25), 'this color won', state['someone_won'])
