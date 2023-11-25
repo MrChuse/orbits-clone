@@ -19,12 +19,12 @@ from screens import (GameScreen, PickColorScreen, LocalOnlinePickerScreen,
 def main():
     pygame.init()
     pygame.display.set_caption('Orbits clone')
-    settings = {'fullscreen': False,
+    settings = {'fullscreen': True,
                 'language': 'en'}
     if settings['fullscreen']:
         window_surface = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
     else:
-        window_surface = pygame.display.set_mode((800, 300), pygame.RESIZABLE)
+        window_surface = pygame.display.set_mode((600, 300), pygame.RESIZABLE)
 
     lop = LocalOnlinePickerScreen(window_surface)
     is_local: str = lop.main() # type: ignore
@@ -38,7 +38,6 @@ def main():
         GameScreen(window_surface, colors).main()
     elif is_local.startswith('online'):
         parts = is_local.split()
-        print(parts)
         if len(parts) == 2 and parts[1] == 'host':
             hpcs = HostPickColorScreen(window_surface)
             result = hpcs.main()

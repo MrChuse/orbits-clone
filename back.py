@@ -3,6 +3,7 @@ from enum import Enum
 from typing import Optional, Union
 import math
 import random
+import heapq
 from collections import deque
 
 import pygame
@@ -46,6 +47,11 @@ class Team(Enum):
     BROWN = (128, 64, 64)
     INDIGO = (70, 0, 148)
 
+color_names = {
+    team.value: name for team, name in zip(Team, [
+        'Red', 'Green', 'Blue', 'Dark red', 'Dark green', 'Yellow', 'Pink', 'Sky', 'Purple', 'Orange', 'Brown', 'Indigo'
+    ])
+}
 
 @dataclass
 class VerticalLine:
@@ -226,6 +232,21 @@ map1 = Map([
     (0.9, 0.8, ROTATOR_SIZE),
 ])
 
+class GameStage(Enum):
+    ROTATING_AROUND_CENTER = 1
+    GAMING = 2
+    SHOWING_RESULTS = 3
+    RESTART_ROUND = 4
+    END_SCREEN = 5
+
+@dataclass
+class PlayerScore:
+    old_score: int = -1
+    old_position: int = -1
+    new_score: int = -1
+    new_position: int = -1
+    color: Optional[tuple[int,int,int]] = None
+
 class Game:
     def __init__(self, colors: dict[int, Team], seed=None) -> None:
         size = (2, 1)
@@ -238,6 +259,13 @@ class Game:
         self.set_dimensions(size) # set these things
 
         self.colors = colors
+        self.num_players = 0
+        self.keys_list = []
+        self.actions_in_last_frame = []
+        self.attacking_spheres : list[list[Sphere]] = None
+        self.register_players_and_keys(list(self.colors.keys())) # set things above
+        self.old_scores = []
+        self.scores = [0] * self.num_players
 
         self.rotators = []
         self.load_map(map1)
@@ -246,21 +274,38 @@ class Game:
         self.random = None
 
         self.player_spheres: list[PlayerSphere] = []
-        self.register_players_and_keys(list(self.colors.keys()))
+        self.spheres: list[Sphere] = []
+        self.attacking_spheres: list[list[Sphere]] = None
         self.someone_won = False
 
-        self.restart_game(seed)
+        self.stage = GameStage.ROTATING_AROUND_CENTER
+        # ROTATING_AROUND_CENTER
+        self.timer = 0
+        self.starting_angle = 0
+
+        # GAMING
+        self.death_order: list[int] = []
+
+        # SHOWING_RESULTS
+        self.score1 = 0
+        self.score2 = 0
+        self.how_to_win_text = ''
+        self.player_scores = None
+
+        self.restart_round(seed)
 
 
     def load_map(self, map_: Map):
         for i in map_.rotators_coords:
             self.rotators.append(RotatorSphere(Vector2(i[0]*self.size[0], i[1]*self.size[1]), i[2]))
 
-    def restart_game(self, seed=None):
+    def restart_round(self, seed=None):
         self.seed = seed
         if self.seed is None:
             self.seed = random.randint(0, 1000000000)
         self.random = random.Random(self.seed)
+
+        self.starting_angle = self.random.uniform(0, 360)
 
         self.player_spheres = []
         for key, (team, name) in self.colors.items():
@@ -271,12 +316,21 @@ class Game:
                               PLAYER_SIZE,
                               team.value)
             self.player_spheres.append(ps)
+        self.attacking_spheres = [[] for _ in range(self.num_players)]
 
         self.spheres = []
         for i in range(10):
             self.add_random_sphere()
 
         self.someone_won = False
+
+        self.stage = GameStage.ROTATING_AROUND_CENTER
+        self.timer = 0
+        self.death_order: list[int] = []
+
+    def restart_game(self):
+        self.scores = [0] * self.num_players
+        self.restart_round()
 
     def set_dimensions(self, size):
         self.size = size
@@ -292,15 +346,6 @@ class Game:
         self.num_players = len(keys_list)
         self.keys_list = keys_list
         self.actions_in_last_frame = []
-        self.attacking_spheres : list[list[Sphere]] = [[] for _ in range(self.num_players)]
-
-    def process_actions(self, actions):
-        self.actions_in_last_frame: list[int] = []
-        for action in actions:
-            if action in self.keys_list:
-                self.actions_in_last_frame.append(self.keys_list.index(action))
-        # if len(actions) > 0:
-        #     print(actions, self.actions_in_last_frame)
 
     def get_random_spawn_position(self, radius):
         return (self.random.uniform(radius, self.size[0]-radius),
@@ -326,8 +371,15 @@ class Game:
             sphere.velocity.x *= -1
             return True
 
-    def update(self, time_delta: float):
-        # perform actions
+    def process_actions(self, actions):
+        self.actions_in_last_frame: list[int] = []
+        for action in actions:
+            if action in self.keys_list:
+                self.actions_in_last_frame.append(self.keys_list.index(action))
+        # if len(actions) > 0:
+        #     print(actions, self.actions_in_last_frame)
+
+    def perform_actions(self):
         if self.actions_in_last_frame is not None:
             for player in self.actions_in_last_frame:
                 player_sphere = self.player_spheres[player]
@@ -347,8 +399,10 @@ class Game:
                             attacking_sphere.velocity = player_sphere.velocity * 2
                             attacking_sphere.damping_factor = 1
                             self.attacking_spheres[player].append(attacking_sphere)
+                if self.stage == GameStage.END_SCREEN:
+                    self.timer += 2
 
-        # update positions and wall collisions
+    def update_positions_and_wall_collisions(self):
         for i in self.player_spheres:
             if not i.alive: continue
             if self.check_wall_collision(i):
@@ -366,7 +420,23 @@ class Game:
             self.check_wall_collision(i)
             i.update()
 
-        # other collisions
+    def update_positions_to_rotate_around_center(self):
+        ROTATION_SPEED = 500
+        FINAL_SIZE = 0.15
+        t = self.timer / 3
+        center = Vector2(self.size) / 2
+        right = Vector2(FINAL_SIZE, 0)
+        for index, sphere in enumerate(self.player_spheres):
+            angle = index / self.num_players * 360 + t * ROTATION_SPEED + self.starting_angle
+            direction = right.rotate(angle)
+            position = center.lerp(center+direction, t)
+            sphere.center = position
+            if t > 0.5:
+                velocity = (center - position).rotate(-90)
+                velocity.scale_to_length(DEFAULT_SPEED)
+                sphere.velocity = velocity
+
+    def process_collisions(self):
         for index, sphere in enumerate(self.player_spheres):
             if not sphere.alive: continue
             # other players
@@ -384,21 +454,14 @@ class Game:
                     continue
                 for sphere_to_check in other_player.trail:
                     if sphere.check_collision(sphere_to_check) and not sphere.is_dodging():
-                        for sphere_to_pop in sphere.trail:
-                            other_player.add_sphere_to_queue(sphere_to_pop)
-                        sphere.trail = []
-                        sphere.alive = False
+                        self.process_player_death(index, sphere, killer_sphere=other_player)
 
             # attacking spheres
             for index2, players_spheres in enumerate(self.attacking_spheres):
                 if index == index2: continue # this players' spheres
                 for sphere_to_check in players_spheres:
                     if sphere.check_collision(sphere_to_check) and not sphere.is_dodging():
-                        other_player = self.player_spheres[index2]
-                        for sphere_to_pop in sphere.trail:
-                            other_player.add_sphere_to_queue(sphere_to_pop)
-                        sphere.trail = []
-                        sphere.alive = False
+                        self.process_player_death(index, sphere, killer_index=index2)
 
             # white spheres
             for sphere_to_check in self.spheres:
@@ -408,26 +471,132 @@ class Game:
                         self.spheres.remove(sphere_to_check)
                         self.add_random_sphere()
 
-        for i in self.player_spheres:
-            i.velocity.scale_to_length(DEFAULT_SPEED)
+    def process_player_death(self, killed_index: int, killed_sphere: PlayerSphere, *, killer_index: Optional[int] = None, killer_sphere: Optional[PlayerSphere] = None):
+        if killer_index is None and killer_sphere is None:
+            raise ValueError('provide at least one')
+        if killer_sphere is None:
+            killer_sphere = self.player_spheres[killer_index]
+        if not killed_sphere.alive: return
+        self.death_order.append(killed_index)
+        for sphere_to_pop in killed_sphere.trail:
+            killer_sphere.add_sphere_to_queue(sphere_to_pop)
+        killed_sphere.trail = []
+        killed_sphere.alive = False
 
-        winner = [p.color for p in self.player_spheres if p.alive]
-        if len(winner) == 1:
-            self.someone_won = winner[0]
+    def process_results(self, winner_index):
+        assert len(self.death_order) == self.num_players-1, len(self.death_order)
+        assert winner_index not in self.death_order
+        self.death_order.append(winner_index)
+
+        self.old_scores = self.scores.copy()
+        for score, player in enumerate(self.death_order):
+            self.scores[player] += score
+        self.score1, self.score2 = heapq.nlargest(2, self.scores)
+        self.death_order = []
+
+        player_scores = [PlayerScore(color=player.color) for player in self.player_spheres]
+
+        sorted_old_scores = sorted(enumerate(self.old_scores), key=lambda x:x[1], reverse=True)
+        for i, (player_index, old_score) in enumerate(sorted_old_scores):
+            player_scores[player_index].old_position = i
+            player_scores[player_index].old_score = old_score
+
+        sorted_scores = sorted(enumerate(self.scores), key=lambda x:x[1], reverse=True)
+        for i, (player_index, score) in enumerate(sorted_scores):
+            player_scores[player_index].new_position = i
+            player_scores[player_index].new_score = score
+        self.player_scores = player_scores
+
+
+    def update(self, time_delta: float):
+        # perform actions. actions were commited in process actions function
+        if self.stage == GameStage.ROTATING_AROUND_CENTER:
+            if self.timer < 3:
+                self.update_positions_to_rotate_around_center()
+                self.timer += time_delta
+            else:
+                self.stage = GameStage.GAMING
+        elif self.stage == GameStage.GAMING:
+            self.perform_actions()
+
+            self.update_positions_and_wall_collisions()
+
+            # other collisions
+            self.process_collisions()
+
+            for i in self.player_spheres:
+                i.velocity.scale_to_length(DEFAULT_SPEED)
+
+            winner = [(index, p.color) for index, p in enumerate(self.player_spheres) if p.alive]
+            if len(winner) == 1:
+                self.stage = GameStage.SHOWING_RESULTS
+                self.timer = 0
+                self.process_results(winner[0][0])
+
+                if self.score1 < 5 * (self.num_players-1):
+                    self.how_to_win_text = f'Reach {5 * (self.num_players-1)} points'
+                    self.next_stage = GameStage.RESTART_ROUND
+                elif self.score1 >= 5 * (self.num_players-1) and self.score1 - self.score2 < 2:
+                    self.how_to_win_text = 'Get a 2-point lead'
+                    self.next_stage = GameStage.RESTART_ROUND
+                else:
+                    self.someone_won = winner[0][1]
+                    self.next_stage = GameStage.END_SCREEN
+        elif self.stage == GameStage.SHOWING_RESULTS:
+            self.perform_actions()
+
+            self.update_positions_and_wall_collisions()
+
+            # other collisions
+            self.process_collisions()
+
+            for i in self.player_spheres:
+                i.velocity.scale_to_length(DEFAULT_SPEED)
+
+            if self.timer > 5:
+                self.stage = self.next_stage
+                self.timer = 0
+            self.timer += time_delta
+        elif self.stage == GameStage.RESTART_ROUND:
+            self.restart_round()
+        elif self.stage == GameStage.END_SCREEN:
+            self.perform_actions()
+
+            self.update_positions_and_wall_collisions()
+
+            # other collisions
+            self.process_collisions()
+
+            for i in self.player_spheres:
+                i.velocity.scale_to_length(DEFAULT_SPEED)
+            if self.timer > 30:
+                self.restart_game()
+
 
     def get_state(self):
-        return {'rotators': self.rotators,
-                'player_spheres': self.player_spheres,
-                'spheres': self.spheres,
-                'someone_won': self.someone_won,
-                'attacking_spheres': self.attacking_spheres}
+        return {
+            'player_spheres': self.player_spheres,
+            'spheres': self.spheres,
+            'attacking_spheres': self.attacking_spheres,
+            }
+
+    def get_front_state(self):
+        d = self.get_state()
+        d['rotators'] = self.rotators
+        d['player_scores'] = self.player_scores
+        d['how_to_win_text'] = self.how_to_win_text
+        d['stage'] = self.stage
+        d['timer'] = self.timer
+        d['someone_won'] = self.someone_won
+        return d
 
     def set_state(self, state: dict):
-        self.rotators = state['rotators']
+        # self.rotators = state['rotators']
         self.player_spheres = state['player_spheres']
         self.spheres = state['spheres']
-        self.someone_won = state['someone_won']
         self.attacking_spheres = state['attacking_spheres']
+        # self.stage = state['stage']
+        # self.timer = state['timer']
 
     def draw_debug(self, debug_surface: pygame.Surface):
         for i in self.player_spheres:

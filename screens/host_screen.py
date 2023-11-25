@@ -64,8 +64,6 @@ class HostPickColorScreen(PickColorScreen):
         print(f"Server {ip}:{port}, loop running in thread:", server_thread.name)
 
     def on_connect(self, sock: socket.socket):
-        print('on connect')
-
         send_command(sock, Command.PLA, len(self.key_map))
         l = list(Team)
         for key, (team, name) in self.key_map.items():
@@ -139,7 +137,7 @@ class HostGameScreen(GameScreen):
         if self.restart:
             new_seed = random.randint(0, 1000000000)
             commands.append((Command.RES, new_seed))
-            self.game.restart_game(new_seed)
+            self.game.restart_round(new_seed)
             self.restart = False
 
         # host's presses

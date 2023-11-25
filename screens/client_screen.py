@@ -13,7 +13,6 @@ from .sock_helpers import recv_player, send_command, recv_command, Command
 
 class ClientThreadedTCPRequestHandler(BaseRequestHandler):
     def handle(self):
-        print('handling with a client')
         self.server.on_connect(self.request)
         while True:
             try:
@@ -127,10 +126,9 @@ class ClientGameScreen(GameScreen):
 
     def update(self, time_delta):
         if self.server.restart:
-            self.game.restart_game(self.server.seed)
+            self.game.restart_round(self.server.seed)
             self.server.restart = False
         for key in self.actions:
-            print(self.sock, key)
             send_command(self.sock, Command.KEY, key)
         for key, team in self.server.captured_keys:
             self.actions.append(key)

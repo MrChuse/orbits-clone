@@ -17,7 +17,7 @@ from pygame_gui.elements import UIButton, UITextEntryLine
 from pygame_gui.windows import UIMessageWindow
 
 from back import Game, Team
-from front import draw_game
+from front import draw_game, calculate_players_leaderboard_positions, draw_player_leaderboard
 
 font = pygame.freetype.SysFont('arial', 25)
 
@@ -113,7 +113,7 @@ class GameScreen(Screen):
             self.manager.update(time_delta)
             if self.game is not None:
                 if self.restart:
-                    self.game.restart_game()
+                    self.game.restart_round()
                     self.restart = False
                 if not self.is_paused or self.by_step:
                     self.game.process_actions(self.actions)
@@ -121,7 +121,7 @@ class GameScreen(Screen):
                     self.actions = []
                     self.by_step = False
 
-                state = self.game.get_state()
+                state = self.game.get_front_state()
                 draw_game(self.game_surface, state, self.game_size)
                 # self.game.draw_debug(self.game_surface)
             self.surface.blit(self.game_surface, self.game_surface_margin)
@@ -134,7 +134,7 @@ class GameScreen(Screen):
 class PickColorScreen(Screen):
     def __init__(self, surface: pygame.Surface):
         super().__init__(surface)
-        self.key_map : dict[int, Team] = {}
+        self.key_map : dict[int, tuple[Team, str]] = {}
         self.key_team_iter_map = {}
         self.unavailable_teams = []
         self.order = []
@@ -169,7 +169,6 @@ class PickColorScreen(Screen):
         for key, name in self.captured_keys:
             if key == pygame.K_SPACE:
                 if len(self.key_map) >= 2 and self.is_running:
-                    print(self.return_value)
                     self.return_value = self.key_map
                     self.is_running = False
             else:
@@ -183,8 +182,8 @@ class PickColorScreen(Screen):
         self.surface.blit(surf2, (30, size[1] - 30 - textsize2[1]))
         for key, (team, name) in self.key_map.items():
             i = self.order.index(key)
-            pygame.draw.ellipse(self.surface, team.value, (100+100*(2*i//len(Team)), 100 + 60*(i%(len(Team)//2)), 25, 25))
-            font.render_to(self.surface, (130+100*(2*i//len(Team)), 100 + 60 * (i%(len(Team)//2)), 25, 25), name, team.value)
+            pos = calculate_players_leaderboard_positions(size, i)
+            draw_player_leaderboard(self.surface, pos, name, team.value)
 
 
 class LocalOnlinePickerScreen(Screen):
