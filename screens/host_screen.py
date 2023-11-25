@@ -135,19 +135,26 @@ class HostGameScreen(GameScreen):
 
     def update(self, time_delta):
         commands = []
+
+        if self.restart:
+            new_seed = random.randint(0, 1000000000)
+            commands.append((Command.RES, new_seed))
+            self.game.restart_game(new_seed)
+            self.restart = False
+
         # host's presses
         for key in self.actions:
             for sock in self.server.client_sockets:
                 commands.append((Command.KEY, key))
 
         # collect state
-        state_commands = []
         state = self.game.get_state()
 
         state_bytes = pickle.dumps(state)
         commands.append((Command.STL, len(state_bytes)))
         commands.append((Command.STT, state_bytes))
 
+        # think about json-serialization
         # {'rotators': self.rotators,
         # 'players': self.player_spheres,
         # 'spheres': self.spheres,

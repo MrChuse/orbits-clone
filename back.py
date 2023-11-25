@@ -246,7 +246,7 @@ class Game:
         self.random = None
 
         self.player_spheres: list[PlayerSphere] = []
-        self.register_players_and_keys(self.colors.keys())
+        self.register_players_and_keys(list(self.colors.keys()))
         self.someone_won = False
 
         self.restart_game(seed)

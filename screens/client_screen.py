@@ -29,6 +29,9 @@ class ClientThreadedTCPRequestHandler(BaseRequestHandler):
                     command, data = recv_command(self.request, data)
                     assert command == Command.STT
                     self.server.game_state = pickle.loads(data)
+                elif command == Command.RES:
+                    self.server.seed = data
+                    self.server.restart = True
                 elif command == '':
                     break
             except ConnectionAbortedError as e:
@@ -43,6 +46,7 @@ class ClientThreadingTCPServer(socketserver.ThreadingTCPServer):
         self.on_disconnect = on_disconnect
         self.seed = None
         self.game_state = None
+        self.restart = True
 
 class ClientPickColorScreen(PickColorScreen):
     def __init__(self, surface: pygame.Surface, host, port=9001):
@@ -122,6 +126,9 @@ class ClientGameScreen(GameScreen):
         self.sock.close()
 
     def update(self, time_delta):
+        if self.server.restart:
+            self.game.restart_game(self.server.seed)
+            self.server.restart = False
         for key in self.actions:
             print(self.sock, key)
             send_command(self.sock, Command.KEY, key)

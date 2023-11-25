@@ -81,6 +81,7 @@ class GameScreen(Screen):
         self.game_surface = pygame.Surface(self.game_size)
         self.is_paused = False
         self.by_step = False
+        self.restart = False
         self.actions = []
 
     def process_events(self, event):
@@ -95,6 +96,8 @@ class GameScreen(Screen):
             if event.key == pygame.K_F3:
                 self.by_step = True
                 self.is_paused = True
+            if event.key == pygame.K_F5:
+                self.restart = True
         elif event.type == pygame.WINDOWSIZECHANGED:
             if event.window is None:
                 self.manager.set_window_resolution((event.x, event.y))
@@ -109,6 +112,9 @@ class GameScreen(Screen):
             self.game_surface.fill(pygame.Color('#000000'))
             self.manager.update(time_delta)
             if self.game is not None:
+                if self.restart:
+                    self.game.restart_game()
+                    self.restart = False
                 if not self.is_paused or self.by_step:
                     self.game.process_actions(self.actions)
                     self.game.update(time_delta)

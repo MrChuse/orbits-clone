@@ -13,6 +13,7 @@ class Command(Enum):
     SEE = 'see' # SEEd
     STL = 'stl' # STate Length
     STT = 'stt' # STaTe
+    RES = 'res' # restart
     # ROT = 'rot' # ROTators
     # SPH = 'sph' # SPHere
     # PSX = 'psx' # PoSitionX
