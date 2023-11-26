@@ -121,6 +121,7 @@ class PlayerSphere(Sphere):
         self.dodge_initiated = False
         self.frames_from_dodge = 0
         self.path : deque[Vector2] = deque(maxlen=self.path_size_per_trail_sphere)
+        self.path.append(center)
         self.trail : list[Sphere] = []
         self.queue_to_trail : list[Sphere] = []
         self.alive = True
@@ -195,12 +196,15 @@ class PlayerSphere(Sphere):
         self.path.appendleft(Vector2(self.center))
 
     def draw_debug(self, debug_surface: pygame.Surface):
-        pygame.draw.line(debug_surface, (255,255,255), self.center, self.center+self.velocity*20, width=3)
-        pygame.draw.circle(debug_surface, (255, 255, 255), self.path[0], 5)
-        pygame.draw.circle(debug_surface, (255, 255, 255), self.path[-1], 5)
-        pygame.draw.circle(debug_surface, (0, 0, 0), self.path[-1], 3)
+        def mul(point, size):
+            return point[0]*min(size), point[1]*min(size)
+        size = debug_surface.get_rect().size
+        pygame.draw.line(debug_surface, (255,255,255), mul(self.center, size), mul(self.center+self.velocity*20, size), width=3)
+        pygame.draw.circle(debug_surface, (255, 255, 255), mul(self.path[0], size), 5)
+        pygame.draw.circle(debug_surface, (255, 255, 255), mul(self.path[-1], size), 5)
+        pygame.draw.circle(debug_surface, (0, 0, 0), mul(self.path[-1], size), 3)
         if self.rotating_around:
-            pygame.draw.line(debug_surface, (255,0,0), self.center, self.rotating_around.center, width=3)
+            pygame.draw.line(debug_surface, (255,0,0), mul(self.center, size), mul(self.rotating_around.center, size), width=3)
             me_rotator_vector = self.rotating_around.center - self.center
             angle = me_rotator_vector.angle_to(self.velocity)
             delta_angle = 360 * DEFAULT_SPEED / (2 * math.pi * me_rotator_vector.magnitude())
@@ -213,7 +217,7 @@ class PlayerSphere(Sphere):
                 velocity_rotate_angle = 90
             rotator_me_vector = -me_rotator_vector
             new_rotator_me_vector = rotator_me_vector.rotate(delta_angle)
-            pygame.draw.line(debug_surface, (255,255,0), self.rotating_around.center + new_rotator_me_vector, self.rotating_around.center, width=3)
+            pygame.draw.line(debug_surface, (255,255,0), mul(self.rotating_around.center + new_rotator_me_vector, size), mul(self.rotating_around.center, size), width=3)
 
 @dataclass
 class Map:
@@ -262,7 +266,6 @@ class Game:
         self.num_players = 0
         self.keys_list = []
         self.actions_in_last_frame = []
-        self.attacking_spheres : list[list[Sphere]] = None
         self.register_players_and_keys(list(self.colors.keys())) # set things above
         self.old_scores = []
         self.scores = [0] * self.num_players
@@ -274,7 +277,8 @@ class Game:
         self.random = None
 
         self.player_spheres: list[PlayerSphere] = []
-        self.spheres: list[Sphere] = []
+        self.active_spheres: list[Sphere] = []
+        self.inactive_spheres: list[Sphere] = []
         self.attacking_spheres: list[list[Sphere]] = None
         self.someone_won = False
 
@@ -318,7 +322,7 @@ class Game:
             self.player_spheres.append(ps)
         self.attacking_spheres = [[] for _ in range(self.num_players)]
 
-        self.spheres = []
+        self.active_spheres = []
         for i in range(10):
             self.add_random_sphere()
 
@@ -352,7 +356,7 @@ class Game:
                 self.random.uniform(radius, self.size[1]-radius))
 
     def add_random_sphere(self):
-        self.spheres.append(Sphere(Vector2(self.get_random_spawn_position(SPHERE_SIZE)),
+        self.active_spheres.append(Sphere(Vector2(self.get_random_spawn_position(SPHERE_SIZE)),
                                    Vector2(0, 0),
                                    SPHERE_SIZE,
                                    (255,255,255)))
@@ -412,11 +416,14 @@ class Game:
             for i in players_spheres:
                 if self.check_wall_collision(i):
                     i.color = (255, 255, 255)
-                    self.spheres.append(i)
+                    self.inactive_spheres.append(i)
                     players_spheres.remove(i)
                     i.damping_factor = 0.98
                 i.update()
-        for i in self.spheres:
+        for i in self.active_spheres:
+            self.check_wall_collision(i)
+            i.update()
+        for i in self.inactive_spheres:
             self.check_wall_collision(i)
             i.update()
 
@@ -464,12 +471,17 @@ class Game:
                         self.process_player_death(index, sphere, killer_index=index2)
 
             # white spheres
-            for sphere_to_check in self.spheres:
+            for sphere_to_check in self.active_spheres:
                 if sphere.check_collision(sphere_to_check):
                     if not sphere.is_dodging():
                         sphere.add_sphere_to_queue(sphere_to_check)
-                        self.spheres.remove(sphere_to_check)
+                        self.active_spheres.remove(sphere_to_check)
                         self.add_random_sphere()
+            for sphere_to_check in self.inactive_spheres:
+                if sphere.check_collision(sphere_to_check):
+                    if not sphere.is_dodging():
+                        sphere.add_sphere_to_queue(sphere_to_check)
+                        self.inactive_spheres.remove(sphere_to_check)
 
     def process_player_death(self, killed_index: int, killed_sphere: PlayerSphere, *, killer_index: Optional[int] = None, killer_sphere: Optional[PlayerSphere] = None):
         if killer_index is None and killer_sphere is None:
@@ -577,7 +589,8 @@ class Game:
     def get_state(self):
         return {
             'player_spheres': self.player_spheres,
-            'spheres': self.spheres,
+            'active_spheres': self.active_spheres,
+            'inactive_spheres': self.inactive_spheres,
             'attacking_spheres': self.attacking_spheres,
             }
 
@@ -594,7 +607,8 @@ class Game:
     def set_state(self, state: dict):
         # self.rotators = state['rotators']
         self.player_spheres = state['player_spheres']
-        self.spheres = state['spheres']
+        self.active_spheres = state['active_spheres']
+        self.inactive_spheres = state['inactive_spheres']
         self.attacking_spheres = state['attacking_spheres']
         # self.stage = state['stage']
         # self.timer = state['timer']

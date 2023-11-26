@@ -45,7 +45,9 @@ def draw_player_leaderboard(surface, pos, text, color):
 def draw_game(surface, state, game_size):
     for i in state['rotators']:
         draw_rotator_sphere(surface, i, game_size)
-    for i in state['spheres']:
+    for i in state['active_spheres']:
+        draw_sphere(surface, i, game_size)
+    for i in state['inactive_spheres']:
         draw_sphere(surface, i, game_size)
     for players_spheres in state['attacking_spheres']:
         for i in players_spheres:
