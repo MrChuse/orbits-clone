@@ -70,16 +70,17 @@ class GameScreen(Screen):
     def __init__(self, surface: pygame.Surface, colors, seed=None):
         super().__init__(surface)
         self.colors = colors
-        self.game = None
         self.window_size = self.surface.get_rect().size
-        self.manager = pygame_gui.UIManager(self.window_size, 'theme.json', enable_live_theme_updates=False)
+        self.manager = pygame_gui.UIManager(self.window_size)
         self.visual_debug = False
         self.game_size = inscribed_rectangle_dimensions(*self.window_size)
         borderx = (self.window_size[0] - self.game_size[0]) / 2
         bordery = (self.window_size[1] - self.game_size[1]) / 2
         self.game_surface_margin = borderx, bordery
+        # self.game = None
         self.game = Game(colors, seed)
         self.game_surface = pygame.Surface(self.game_size)
+        self.draw_debug = False
         self.is_paused = False
         self.by_step = False
         self.restart = False
@@ -92,6 +93,8 @@ class GameScreen(Screen):
                 self.manager.set_visual_debug_mode(self.visual_debug)
             if event.key in self.colors.keys():
                 self.actions.append(event.key)
+            elif event.key == pygame.K_F1:
+                self.draw_debug = not self.draw_debug
             if event.key == pygame.K_F2:
                 self.is_paused = not self.is_paused
             if event.key == pygame.K_F3:
@@ -124,7 +127,8 @@ class GameScreen(Screen):
 
                 state = self.game.get_front_state()
                 draw_game(self.game_surface, state, self.game_size)
-                # self.game.draw_debug(self.game_surface)
+                if self.draw_debug:
+                    self.game.draw_debug(self.game_surface)
             self.surface.blit(self.game_surface, self.game_surface_margin)
             self.manager.draw_ui(self.surface)
     # finally:
