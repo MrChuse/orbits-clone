@@ -310,6 +310,7 @@ class TestRayIntersectSphere(Screen):
         self.up_pos = None
         self.ray = None
         self.sphere = None
+        self.ray_color = (255, 255, 255)
 
     def process_events(self, event):
         super().process_events(event)
@@ -341,28 +342,14 @@ class TestRayIntersectSphere(Screen):
                     self.up_pos = None
                     self.state = ''
 
-
+        intersects = False
         if self.ray is not None and self.sphere is not None:
             intersects, distance = ray_intersects_sphere(self.ray, self.sphere)
 
-            sphere = self.sphere
-            ray = self.ray
-            diff = sphere.center - ray.origin
-            dir = ray.direction.normalize()
-            cx = dir.x * diff.x + dir.y * diff.y
-            cy = -dir.y * diff.x + dir.x * diff.y
-            pygame.draw.line(self.surface, (255, 255, 255), ray.origin, ray.origin+diff)
-            font.render_to(self.surface, (30, 30), str(cx))
-            font.render_to(self.surface, (30, 60), str(cy))
-            if cx > 0 and -sphere.radius <= cy <= sphere.radius:
-                # return True, cx
-                pass
-            else:
-                # return False, None
-                pass
-
             if intersects:
                 self.ray_color = (0, 255, 0)
+                dir = Vector2(self.ray.direction)
+                dir.scale_to_length(distance)
             else:
                 self.ray_color = (255, 0, 0)
         else:
@@ -372,3 +359,5 @@ class TestRayIntersectSphere(Screen):
             pygame.draw.line(self.surface, self.ray_color, self.ray.origin, self.ray.origin+self.ray.direction)
         if self.sphere is not None:
             draw_sphere(self.surface, self.sphere, (1, 1))
+        if intersects:
+            pygame.draw.line(self.surface, self.ray_color, self.ray.origin, self.ray.origin + dir, width=5)

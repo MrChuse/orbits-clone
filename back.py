@@ -278,6 +278,27 @@ class BotPlayerSphere(PlayerSphere):
     def get_action(self, state: 'GameState', time_delta: float):
         self.last_state = state
 
+        if not self.is_in_rotator(state.rotators):
+            spheres_to_check = []
+            for player_sphere, attacking_spheres in zip(state.player_spheres, state.attacking_spheres):
+                if player_sphere is self: continue
+                spheres_to_check.extend(player_sphere.trail)
+                for sphere in attacking_spheres:
+                    ray = Ray(sphere.center, sphere.velocity)
+                    hit, distance = ray_intersects_sphere(ray, self)
+                    if hit and distance < 0.1:
+                        print(Team(self.color).name, 'jumping to dodge attack', distance)
+                        return True
+
+            ray = Ray(self.center, self.velocity)
+            for sphere in spheres_to_check:
+                hit, distance = ray_intersects_sphere(ray, sphere)
+                if hit and distance < 0.1:
+                    print(Team(self.color).name, 'jumping to dodge trail', distance)
+                    return True
+
+
+
         if self.botstate == BotState.WAITING:
             if self.timer < self.wait_time:
                 # print('waiting for 5 secs:', state.timer)
