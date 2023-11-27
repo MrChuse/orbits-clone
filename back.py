@@ -7,6 +7,7 @@ import heapq
 from collections import deque
 
 import pygame
+import pygame.freetype
 from pygame import Vector2, Surface
 
 # reference from picture in pixels
@@ -242,6 +243,7 @@ class BotState(Enum):
     ROTATING = auto()
     GOING_FOR_SPHERE = auto()
 
+font = pygame.freetype.SysFont('arial', 25)
 class BotPlayerSphere(PlayerSphere):
     def __init__(self, center, velocity, radius, color):
         super().__init__(center, velocity, radius, color)
@@ -284,17 +286,27 @@ class BotPlayerSphere(PlayerSphere):
             else:
                 self.botstate = BotState.GOING_FOR_ROTATOR
         elif self.botstate == BotState.GOING_FOR_ROTATOR:
+            if self.rotating_around:
+                self.botstate = BotState.GOING_FOR_SPHERE
+                self.timer = 0
+                print('already rotating')
+                return False
             if self.is_in_rotator(state.rotators) and self.rotating_around is None:
-                print('trying to catch rotator')
+                print('caught rotator')
                 self.botstate = BotState.GOING_FOR_SPHERE
                 self.timer = 0
                 return True
         elif self.botstate == BotState.GOING_FOR_SPHERE:
             if self.timer > 5:
+                self.botstate = BotState.GOING_FOR_ROTATOR
+                self.timer = 0
+                print('rotating for too long')
                 return True # rotating for too long
             self.timer += time_delta
             if len(self.trail) > self.prev_spheres:
                 self.botstate = BotState.GOING_FOR_ROTATOR
+                self.prev_spheres = len(self.trail)
+                print('caught a sphere')
                 return False
             # going for a sphere
             sphere = self.calc_closest_sphere(state.active_spheres+state.inactive_spheres)
@@ -304,7 +316,7 @@ class BotPlayerSphere(PlayerSphere):
                     print('trying to hit closest sphere from a rotator')
                     return True
                 else:
-                    print('trying to hit closest sphere going straight for it')
+                    # print('trying to hit closest sphere going straight for it')
                     return False
         self.timer += time_delta
         return False
@@ -319,9 +331,9 @@ class BotPlayerSphere(PlayerSphere):
         # rotator, distance = self.calc_first_rotator_hit(self.last_state.rotators)
         # if rotator is not None:
         #     pygame.draw.line(debug_surface, (255,255,255), mul(self.center), mul(rotator.center))
+        font.render_to(debug_surface, mul(self.center), f'{self.botstate.name} {self.timer:.1f}', self.color, size=10)
         sphere = self.calc_closest_sphere(state.active_spheres+state.inactive_spheres)
         pygame.draw.circle(debug_surface, self.color, mul(sphere.center), SPHERE_SIZE*min(size)/2)
-
         ray = Ray(self.center, self.velocity)
         hit, distance = ray_intersects_sphere(ray, sphere)
         if hit:
