@@ -87,3 +87,7 @@ def draw_game(surface, state: GameStateFront, game_size):
         time = int(state.timer)
         text = str(30 - time)
         font.render_to(surface, (game_size[0]/2-15, game_size[1] - 50), text, color)
+
+        for player_score in state.player_scores:
+            pos = calculate_players_leaderboard_positions(game_size, player_score.new_position)
+            draw_player_leaderboard(surface, pos, str(player_score.new_score), player_score.color)

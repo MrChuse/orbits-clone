@@ -316,6 +316,7 @@ class BotPlayerSphere(PlayerSphere):
         pass
 
     def get_action(self, state: 'GameState', time_delta: float):
+        if not self.alive: return False
         self.last_state = state
 
 
@@ -457,13 +458,13 @@ class GameState:
     attacking_spheres: list[list[Sphere]]
     rotators: list[RotatorSphere]
     timer: float
-    def update_to_front(self, player_scores: list[int], how_to_win_text: str, stage: GameStage, someone_won: Optional[tuple[int, int, int]]):
+    def update_to_front(self, player_scores: list[PlayerScore], how_to_win_text: str, stage: GameStage, someone_won: Optional[tuple[int, int, int]]):
         return GameStateFront(self.player_spheres, self.active_spheres, self.inactive_spheres, self.attacking_spheres, self.rotators, self.timer,
                               player_scores, how_to_win_text, stage, someone_won)
 
 @dataclass
 class GameStateFront(GameState):
-    player_scores: list[int]
+    player_scores: list[PlayerScore]
     how_to_win_text: str
     stage: GameStage
     someone_won: Optional[tuple[int, int, int]]

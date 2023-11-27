@@ -183,7 +183,7 @@ class PickColorScreen(Screen):
                 self.key_team_iter_map[key] = iter(Team)
 
     def add_bot(self):
-        if self.num_bots > 12: return
+        if self.num_bots == 12: return
         bot_enum = list(Bot)[self.num_bots]
         team = self.find_available_team(bot_enum)
         name = f'Bot {self.num_bots+1}'
