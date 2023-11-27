@@ -60,7 +60,9 @@ class Screen:
                 self.process_events(event)
 
             self.surface.blit(self.background, (0, 0))
+            self.manager.update(time_delta)
             self.update(time_delta)
+            self.manager.draw_ui(self.surface)
             pygame.display.set_caption(f'Orbits clone | {clock.get_fps():.1f}')
             pygame.display.update()
         self.clean_up()
@@ -94,9 +96,13 @@ class GameScreen(Screen):
         self.restart = False
         self.actions = []
 
-    # def on_window_size_changed(self, size):
-        # if self.game is not None:
-        #     self.game.set_dimensions(size)
+    def on_window_size_changed(self, size):
+        super().on_window_size_changed(size)
+        self.game_size = inscribed_rectangle_dimensions(*self.window_size)
+        self.game_surface = pygame.Surface(self.game_size)
+        borderx = (self.window_size[0] - self.game_size[0]) / 2
+        bordery = (self.window_size[1] - self.game_size[1]) / 2
+        self.game_surface_margin = borderx, bordery
 
     def process_events(self, event):
         if event.type == pygame.KEYDOWN:
@@ -118,7 +124,6 @@ class GameScreen(Screen):
 
     def update(self, time_delta):
             self.game_surface.fill(pygame.Color('#000000'))
-            self.manager.update(time_delta)
             if self.game is not None:
                 if self.restart:
                     self.game.restart_round()
@@ -134,7 +139,6 @@ class GameScreen(Screen):
                 if self.draw_debug:
                     self.game.draw_debug(self.game_surface)
             self.surface.blit(self.game_surface, self.game_surface_margin)
-            self.manager.draw_ui(self.surface)
     # finally:
     #     if game is not None:
     #         game.exit()
