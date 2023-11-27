@@ -24,8 +24,13 @@ font = pygame.freetype.SysFont('arial', 25)
 class Screen:
     def __init__(self, surface: pygame.Surface):
         self.surface = surface
+        self.window_size = self.surface.get_rect().size
+        self.background = pygame.Surface(self.window_size)
+        self.background_color = '#101010'
+        self.background.fill(pygame.Color(self.background_color))
         self.return_value = None
         self.force_quit = False
+        self.manager = pygame_gui.UIManager(self.window_size)
 
     def clean_up(self):
         return
@@ -33,12 +38,13 @@ class Screen:
         return
     def update(self, time_delta):
         return
+    def on_window_size_changed(self, size):
+        self.window_size = size
+        self.manager.set_window_resolution(size)
+        self.background = pygame.Surface(size)
+        self.background.fill(pygame.Color(self.background_color))
 
     def main(self):
-        window_size = self.surface.get_rect().size
-        background = pygame.Surface(window_size)
-        background.fill(pygame.Color('#101010'))
-
         clock = pygame.time.Clock()
         self.is_running = True
         while self.is_running:
@@ -48,9 +54,12 @@ class Screen:
                 if event.type == pygame.QUIT:
                     self.force_quit = True
                     self.is_running = False
+                elif event.type == pygame.WINDOWSIZECHANGED:
+                    if event.window is None:
+                        self.on_window_size_changed((event.x, event.y))
                 self.process_events(event)
 
-            self.surface.blit(background, (0, 0))
+            self.surface.blit(self.background, (0, 0))
             self.update(time_delta)
             pygame.display.set_caption(f'Orbits clone | {clock.get_fps():.1f}')
             pygame.display.update()
@@ -71,7 +80,6 @@ class GameScreen(Screen):
         super().__init__(surface)
         self.colors = colors
         self.window_size = self.surface.get_rect().size
-        self.manager = pygame_gui.UIManager(self.window_size)
         self.visual_debug = False
         self.game_size = inscribed_rectangle_dimensions(*self.window_size)
         borderx = (self.window_size[0] - self.game_size[0]) / 2
@@ -85,6 +93,10 @@ class GameScreen(Screen):
         self.by_step = False
         self.restart = False
         self.actions = []
+
+    # def on_window_size_changed(self, size):
+        # if self.game is not None:
+        #     self.game.set_dimensions(size)
 
     def process_events(self, event):
         if event.type == pygame.KEYDOWN:
@@ -102,14 +114,6 @@ class GameScreen(Screen):
                 self.is_paused = True
             if event.key == pygame.K_F5:
                 self.restart = True
-        elif event.type == pygame.WINDOWSIZECHANGED:
-            if event.window is None:
-                self.manager.set_window_resolution((event.x, event.y))
-                # cursor_manager.set_window_resolution((event.x, event.y))
-                background = pygame.Surface((event.x, event.y))
-                background.fill(pygame.Color('#000000'))
-                if self.game is not None:
-                    self.game.set_dimensions((event.x, event.y))
             self.manager.process_events(event)
 
     def update(self, time_delta):
