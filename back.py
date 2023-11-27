@@ -65,6 +65,33 @@ class HorizontalLine:
 class Ray:
     origin: Vector2
     direction: Vector2
+    def intersects(self, other: 'Ray'):
+        if not isinstance(other, Ray):
+            raise TypeError('other thing must be Ray')
+        det = self.direction.x * other.direction.y - other.direction.x * self.direction.y
+        if det == 0:
+            return None  # Rays are parallel, no intersection
+
+        diff_origin = other.origin - self.origin
+        t = (diff_origin.x * other.direction.y - diff_origin.y * other.direction.x) / det
+        u = (diff_origin.x * self.direction.y - diff_origin.y * self.direction.x) / det
+        if t < 0 or u < 0:
+            return None  # Intersection point is behind one of the rays
+
+        intersection_point = self.origin + self.direction * t
+        distance = self.origin.distance_to(intersection_point)
+        return distance
+
+    def intersects_sphere(self, sphere: 'Sphere'):
+        # https://math.stackexchange.com/a/4785487
+        diff = sphere.center - self.origin
+        dir = self.direction.normalize()
+        cx = dir.x * diff.x + dir.y * diff.y
+        cy = -dir.y * diff.x + dir.x * diff.y
+        if cx > 0 and -sphere.radius <= cy <= sphere.radius:
+            return cx
+        else:
+            return None
 
 @dataclass
 class Sphere:
@@ -77,8 +104,10 @@ class Sphere:
 
     def get_rect(self):
         return self.center.x-self.radius, self.center.y-self.radius, self.radius*2, self.radius*2
+    def get_ray(self):
+        return Ray(self.center, self.velocity)
 
-    def check_collision(self, other: Union['Sphere', VerticalLine, HorizontalLine]):
+    def intersects(self, other: Union['Sphere', VerticalLine, HorizontalLine]):
         if isinstance(other, Sphere):
             return self.center.distance_squared_to(other.center) <= (self.radius + other.radius) ** 2
         if isinstance(other, VerticalLine):
@@ -86,6 +115,27 @@ class Sphere:
         if isinstance(other, HorizontalLine):
             return other.y - self.radius < self.center.y < other.y + self.radius
         raise TypeError('Can check collisions only with Sphere, VerticalLine and HorizontalLine for now')
+
+    def will_hit_sphere(self, other: 'Sphere'):
+        # Calculate the time until the spheres will intersect
+        relative_velocity = self.velocity - other.velocity
+        relative_position = self.center - other.center
+        a = relative_velocity.magnitude_squared()
+        b = 2 * relative_velocity.dot(relative_position)
+        c = relative_position.magnitude_squared() - (self.radius + other.radius)**2
+        discriminant = b**2 - 4*a*c
+
+        if discriminant < 0:
+            return None  # The spheres will never intersect
+
+        # Calculate the time at which the spheres will intersect
+        t = (-b - math.sqrt(discriminant)) / (2*a)
+        if t < 0:
+            return None  # The spheres have already passed each other
+
+        return t  # The spheres will eventually collide
+
+        # return time_to_collision if time_to_collision >= 0 else None
 
     def check_center_inside(self, other: 'Sphere'):
         if isinstance(other, Sphere):
@@ -224,26 +274,12 @@ class PlayerSphere(Sphere):
             new_rotator_me_vector = rotator_me_vector.rotate(delta_angle)
             pygame.draw.line(debug_surface, (255,255,0), mul(self.rotating_around.center + new_rotator_me_vector, size), mul(self.rotating_around.center, size), width=3)
 
-
-def ray_intersects_sphere(ray: Ray, sphere: Sphere):
-    # https://math.stackexchange.com/a/4785487
-    diff = sphere.center - ray.origin
-    dir = ray.direction.normalize()
-    cx = dir.x * diff.x + dir.y * diff.y
-    cy = -dir.y * diff.x + dir.x * diff.y
-    if cx > 0 and -sphere.radius <= cy <= sphere.radius:
-        return True, cx
-    else:
-        return False, None
-
-
 class BotState(Enum):
     WAITING = auto()
     GOING_FOR_ROTATOR = auto()
     ROTATING = auto()
     GOING_FOR_SPHERE = auto()
 
-font = pygame.freetype.SysFont('arial', 25)
 class BotPlayerSphere(PlayerSphere):
     def __init__(self, center, velocity, radius, color):
         super().__init__(center, velocity, radius, color)
@@ -252,14 +288,15 @@ class BotPlayerSphere(PlayerSphere):
         self.wait_time = 5
         self.timer = 0
         self.prev_spheres = 0
+        self.font = pygame.freetype.SysFont('arial', 25)
 
     def calc_first_rotator_hit(self, rotators):
-        ray = Ray(self.center, self.velocity)
+        ray = self.get_ray()
         closest_rotator = None
         closest_distance = 10
         for rotator in rotators:
-            hit, distance = ray_intersects_sphere(ray, rotator)
-            if hit and distance < closest_distance:
+            distance = ray.intersects_sphere(rotator)
+            if distance is not None and distance < closest_distance:
                 closest_rotator = rotator
                 closest_distance = distance
         return closest_rotator, closest_distance
@@ -275,26 +312,28 @@ class BotPlayerSphere(PlayerSphere):
             spheres = filter(lambda x: self.center.distance_squared_to(self.rotating_around.center) < x.center.distance_squared_to(self.rotating_around.center), spheres)
         return min(spheres, key=lambda x:self.center.distance_squared_to(x.center))
 
+    def check_if_will_collide(self, sphere: Sphere):
+        pass
+
     def get_action(self, state: 'GameState', time_delta: float):
         self.last_state = state
 
-        if not self.is_in_rotator(state.rotators):
-            spheres_to_check = []
-            for player_sphere, attacking_spheres in zip(state.player_spheres, state.attacking_spheres):
-                if player_sphere is self: continue
-                spheres_to_check.extend(player_sphere.trail)
-                for sphere in attacking_spheres:
-                    ray = Ray(sphere.center, sphere.velocity)
-                    hit, distance = ray_intersects_sphere(ray, self)
-                    if hit and distance < 0.1:
-                        print(Team(self.color).name, 'jumping to dodge attack', distance)
-                        return True
 
-            ray = Ray(self.center, self.velocity)
+        spheres_to_check = []
+        for player_sphere, attacking_spheres in zip(state.player_spheres, state.attacking_spheres):
+            if player_sphere is self: continue
+            spheres_to_check.extend(player_sphere.trail)
+            for sphere in attacking_spheres:
+                time = sphere.will_hit_sphere(self)
+                if time is not None:
+                    print(time)
+                if time is not None and time < 10:
+                    print(Team(self.color).name, 'jumping to dodge attack', time)
+                    return True
             for sphere in spheres_to_check:
-                hit, distance = ray_intersects_sphere(ray, sphere)
-                if hit and distance < 0.1:
-                    print(Team(self.color).name, 'jumping to dodge trail', distance)
+                time = self.will_hit_sphere(sphere)
+                if time is not None and time < 10:
+                    print(Team(self.color).name, 'jumping to dodge trail', time)
                     return True
 
 
@@ -332,8 +371,9 @@ class BotPlayerSphere(PlayerSphere):
                 return False
             # going for a sphere
             sphere = self.calc_closest_sphere(state.active_spheres+state.inactive_spheres)
-            hit, distance = ray_intersects_sphere(Ray(self.center, self.velocity), sphere)
-            if hit:
+            ray = self.get_ray()
+            distance = ray.intersects_sphere(sphere)
+            if distance is not None:
                 if self.rotating_around is not None:
                     print(Team(self.color).name, 'trying to hit closest sphere from a rotator')
                     return True
@@ -353,12 +393,12 @@ class BotPlayerSphere(PlayerSphere):
         # rotator, distance = self.calc_first_rotator_hit(self.last_state.rotators)
         # if rotator is not None:
         #     pygame.draw.line(debug_surface, (255,255,255), mul(self.center), mul(rotator.center))
-        font.render_to(debug_surface, mul(self.center), f'{self.botstate.name} {self.timer:.1f}', self.color, size=10)
+        self.font.render_to(debug_surface, mul(self.center), f'{self.botstate.name} {self.timer:.1f}', self.color, size=10)
         sphere = self.calc_closest_sphere(state.active_spheres+state.inactive_spheres)
         pygame.draw.circle(debug_surface, self.color, mul(sphere.center), SPHERE_SIZE*min(size)/2)
-        ray = Ray(self.center, self.velocity)
-        hit, distance = ray_intersects_sphere(ray, sphere)
-        if hit:
+        ray = self.get_ray()
+        distance = ray.intersects_sphere(sphere)
+        if distance is not None:
             pygame.draw.line(debug_surface, self.color, mul(self.center), mul(sphere.center))
             # print(f'{ray}, {sphere}')
 
@@ -543,16 +583,16 @@ class Game:
                                    (255,255,255)))
 
     def check_wall_collision(self, sphere: Sphere):
-        if sphere.check_collision(self.topwall):
+        if sphere.intersects(self.topwall):
             sphere.velocity.y *= -1
             return True
-        if sphere.check_collision(self.bottomwall):
+        if sphere.intersects(self.bottomwall):
             sphere.velocity.y *= -1
             return True
-        if sphere.check_collision(self.leftwall):
+        if sphere.intersects(self.leftwall):
             sphere.velocity.x *= -1
             return True
-        if sphere.check_collision(self.rightwall):
+        if sphere.intersects(self.rightwall):
             sphere.velocity.x *= -1
             return True
 
@@ -631,7 +671,7 @@ class Game:
             # other players
             for sphere_to_check in self.player_spheres[index+1:]:
                 if not sphere_to_check.alive: continue
-                if sphere.check_collision(sphere_to_check):
+                if sphere.intersects(sphere_to_check):
                     sphere.rotating_around = None
                     sphere_to_check.rotating_around = None
                     if not sphere.is_dodging() and not sphere_to_check.is_dodging():
@@ -642,25 +682,25 @@ class Game:
                 if sphere == other_player:
                     continue
                 for sphere_to_check in other_player.trail:
-                    if sphere.check_collision(sphere_to_check) and not sphere.is_dodging():
+                    if sphere.intersects(sphere_to_check) and not sphere.is_dodging():
                         self.process_player_death(index, sphere, killer_sphere=other_player)
 
             # attacking spheres
             for index2, players_spheres in enumerate(self.attacking_spheres):
                 if index == index2: continue # this players' spheres
                 for sphere_to_check in players_spheres:
-                    if sphere.check_collision(sphere_to_check) and not sphere.is_dodging():
+                    if sphere.intersects(sphere_to_check) and not sphere.is_dodging():
                         self.process_player_death(index, sphere, killer_index=index2)
 
             # white spheres
             for sphere_to_check in self.active_spheres:
-                if sphere.check_collision(sphere_to_check):
+                if sphere.intersects(sphere_to_check):
                     if not sphere.is_dodging():
                         sphere.add_sphere_to_queue(sphere_to_check)
                         self.active_spheres.remove(sphere_to_check)
                         self.add_random_sphere()
             for sphere_to_check in self.inactive_spheres:
-                if sphere.check_collision(sphere_to_check):
+                if sphere.intersects(sphere_to_check):
                     if not sphere.is_dodging():
                         sphere.add_sphere_to_queue(sphere_to_check)
                         self.inactive_spheres.remove(sphere_to_check)

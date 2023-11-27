@@ -1,23 +1,17 @@
-# from _socket import _RetAddress
-from collections.abc import Callable
 import socket
-import socketserver
-# from socketserver import _AfInetAddress,BaseRequestHandler
-from socketserver import BaseRequestHandler
-import threading
 from traceback import print_exc
 from collections import deque
 from typing import Any
 
 import pygame
-from pygame import Surface
+from pygame import Surface, Vector2
 import pygame.freetype
 pygame.freetype.init()
 import pygame_gui
 from pygame_gui.elements import UIButton, UITextEntryLine
 from pygame_gui.windows import UIMessageWindow
 
-from back import Game, Team, Bot
+from back import Game, Team, Bot, Ray, Sphere
 from front import draw_game, calculate_players_leaderboard_positions, draw_player_leaderboard, draw_sphere
 
 font = pygame.freetype.SysFont('arial', 25)
@@ -308,13 +302,17 @@ class TestRayIntersectSphere(Screen):
         self.state = ''
         self.down_pos = None
         self.up_pos = None
-        self.ray = None
+        self.ray1 = None
+        self.ray2 = None
+        self.which_ray = True
         self.sphere = None
         self.ray_color = (255, 255, 255)
+        self.timer = 0
+        self.spheres1: deque[Sphere]= deque(maxlen=1)
+        self.spheres2: deque[Sphere] = deque(maxlen=1)
 
     def process_events(self, event):
         super().process_events(event)
-        from pygame import Vector2
         if event.type == pygame.MOUSEBUTTONDOWN:
             self.down_pos = Vector2(event.pos)
             self.up_pos = None
@@ -325,9 +323,72 @@ class TestRayIntersectSphere(Screen):
             self.up_pos = Vector2(event.pos)
             self.state = 'release'
 
-    def update(self, time_delta):
+    def update_ray_ray(self, time_delta):
         super().update(time_delta)
-        from back import Ray, Sphere, ray_intersects_sphere
+        if self.down_pos is not None and self.up_pos is not None:
+            if self.which_ray:
+                self.ray1 = Ray(self.down_pos, self.up_pos - self.down_pos)
+            else:
+                self.ray2 = Ray(self.down_pos, self.up_pos - self.down_pos)
+            if self.state == 'release':
+                self.which_ray = not self.which_ray
+                self.down_pos = None
+                self.up_pos = None
+                self.state = ''
+
+        distance = False
+        if self.ray1 is not None and self.ray2 is not None:
+            distance = self.ray1.intersects(self.ray2)
+            # print(f'{self.ray1}, {self.ray2}, {distance}')
+            if distance is not None:
+                self.ray_color = (0, 255, 0)
+                dir = Vector2(self.ray1.direction)
+                dir.scale_to_length(distance)
+            else:
+                self.ray_color = (255, 0, 0)
+        else:
+            self.ray_color = (255, 255, 255)
+
+        if self.ray1 is not None:
+            pygame.draw.line(self.surface, self.ray_color, self.ray1.origin, self.ray1.origin+self.ray1.direction)
+        if self.ray2 is not None:
+            pygame.draw.line(self.surface, self.ray_color, self.ray2.origin, self.ray2.origin+self.ray2.direction)
+        if distance:
+            pygame.draw.line(self.surface, self.ray_color, self.ray1.origin, self.ray1.origin + dir, width=5)
+
+        self.timer += time_delta
+        if self.timer > 1:
+            if self.ray1 is not None:
+                vel = Vector2(self.ray1.direction)
+                vel.scale_to_length(2)
+                self.spheres1.append(Sphere(Vector2(self.ray1.origin), vel, 10))
+            if self.ray2 is not None:
+                vel = Vector2(self.ray2.direction)
+                vel.scale_to_length(2)
+                self.spheres2.append(Sphere(Vector2(self.ray2.origin), vel, 10))
+            self.timer = 0
+        for s in self.spheres1:
+            s.update()
+            draw_sphere(self.surface, s, (1, 1))
+        for s in self.spheres2:
+            s.update()
+            draw_sphere(self.surface, s, (1, 1))
+
+        for s1 in self.spheres1:
+            for s2 in self.spheres2:
+                time = s1.will_hit_sphere(s2)
+                if time is not None:
+                    font.render_to(self.surface, (30, 30), f'{time:.1f}', (255, 255, 255))
+                    s1.color = (0, 255, 0)
+                    s2.color = (0, 255, 0)
+                else:
+                    s1.color = (255, 0, 0)
+                    s2.color = (255, 0, 0)
+
+
+    def update_ray_sphere(self, time_delta):
+        super().update(time_delta)
+        from back import Ray, Sphere
         from pygame import Vector2
 
         if self.down_pos is not None and self.up_pos is not None:
@@ -336,28 +397,31 @@ class TestRayIntersectSphere(Screen):
                 self.down_pos = None
                 self.up_pos = None
             else:
-                self.ray = Ray(self.down_pos, self.up_pos - self.down_pos)
+                self.ray1 = Ray(self.down_pos, self.up_pos - self.down_pos)
                 if self.state == 'release':
                     self.down_pos = None
                     self.up_pos = None
                     self.state = ''
 
         intersects = False
-        if self.ray is not None and self.sphere is not None:
-            intersects, distance = ray_intersects_sphere(self.ray, self.sphere)
+        if self.ray1 is not None and self.sphere is not None:
+            intersects, distance = self.ray1.intersects_sphere(self.sphere)
 
             if intersects:
                 self.ray_color = (0, 255, 0)
-                dir = Vector2(self.ray.direction)
+                dir = Vector2(self.ray1.direction)
                 dir.scale_to_length(distance)
             else:
                 self.ray_color = (255, 0, 0)
         else:
             self.ray_color = (255, 255, 255)
 
-        if self.ray is not None:
-            pygame.draw.line(self.surface, self.ray_color, self.ray.origin, self.ray.origin+self.ray.direction)
+        if self.ray1 is not None:
+            pygame.draw.line(self.surface, self.ray_color, self.ray1.origin, self.ray1.origin+self.ray1.direction)
         if self.sphere is not None:
             draw_sphere(self.surface, self.sphere, (1, 1))
         if intersects:
-            pygame.draw.line(self.surface, self.ray_color, self.ray.origin, self.ray.origin + dir, width=5)
+            pygame.draw.line(self.surface, self.ray_color, self.ray1.origin, self.ray1.origin + dir, width=5)
+
+    def update(self, time_delta):
+        self.update_ray_ray(time_delta)
