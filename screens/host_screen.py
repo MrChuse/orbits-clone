@@ -53,7 +53,7 @@ class HostThreadedTCPRequestHandler(BaseRequestHandler):
 class HostPickColorScreen(PickColorScreen):
     def __init__(self, surface: pygame.Surface):
         super().__init__(surface, draw_bots_buttons=False)
-        HOST, PORT = "localhost", 9001
+        HOST, PORT = "0.0.0.0", 9001
 
         self.server = HostThreadingTCPServer((HOST, PORT), HostThreadedTCPRequestHandler, self.on_connect, self.on_disconnect)
 

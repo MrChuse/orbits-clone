@@ -59,7 +59,7 @@ class ClientPickColorScreen(PickColorScreen):
             print(e)
 
 
-        self.server = ClientThreadingTCPServer((self.host, 9002), ClientThreadedTCPRequestHandler, self.on_connect, self.on_disconnect)
+        self.server = ClientThreadingTCPServer(('0.0.0.0', 9002), ClientThreadedTCPRequestHandler, self.on_connect, self.on_disconnect)
         ip, port = self.server.server_address
 
         server_thread = threading.Thread(target=self.server.serve_forever, daemon=True)
