@@ -269,7 +269,6 @@ class LocalOnlinePickerScreen(Screen):
                                                           'left_target':self.host_button})
 
     def process_events(self, event):
-        self.manager.process_events(event)
         if event.type == pygame_gui.UI_BUTTON_PRESSED:
             if event.ui_element == self.local_button:
                 self.return_value = 'local'
