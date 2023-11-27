@@ -312,14 +312,11 @@ class BotPlayerSphere(PlayerSphere):
             spheres = filter(lambda x: self.center.distance_squared_to(self.rotating_around.center) < x.center.distance_squared_to(self.rotating_around.center), spheres)
         return min(spheres, key=lambda x:self.center.distance_squared_to(x.center))
 
-    def check_if_will_collide(self, sphere: Sphere):
-        pass
-
     def get_action(self, state: 'GameState', time_delta: float):
         if not self.alive: return False
         self.last_state = state
 
-
+        # dodge first
         spheres_to_check = []
         for player_sphere, attacking_spheres in zip(state.player_spheres, state.attacking_spheres):
             if player_sphere is self: continue
@@ -337,7 +334,15 @@ class BotPlayerSphere(PlayerSphere):
                     print(Team(self.color).name, 'jumping to dodge trail', time)
                     return True
 
-
+        # try to attack
+        if not self.is_in_rotator(state.rotators):
+            if len(self.trail) > 0:
+                attacking_sphere = Sphere(self.trail[0].center, self.velocity * 2, SPHERE_SIZE)
+                for player in state.player_spheres:
+                    if player is self: continue
+                    if attacking_sphere.will_hit_sphere(player) is not None:
+                        print(Team(self.color).name, 'jumping to attack')
+                        return True
 
         if self.botstate == BotState.WAITING:
             if self.timer < self.wait_time:
