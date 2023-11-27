@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, auto
 from typing import Optional, Union
 import math
 import random
@@ -7,7 +7,7 @@ import heapq
 from collections import deque
 
 import pygame
-from pygame import Vector2
+from pygame import Vector2, Surface
 
 # reference from picture in pixels
 REFERENCE_SCREEN_SIZE = 885
@@ -60,13 +60,17 @@ class VerticalLine:
 class HorizontalLine:
     y: float
 
+@dataclass
+class Ray:
+    origin: Vector2
+    direction: Vector2
 
 @dataclass
 class Sphere:
     center: Vector2
     velocity: Vector2
     radius: float
-    color: tuple[int, int, int]
+    color: tuple[int, int, int] = (255, 255, 255)
     mass: float = 1
     damping_factor: float = 1
 
@@ -196,9 +200,9 @@ class PlayerSphere(Sphere):
         self.path.appendleft(Vector2(self.center))
 
     def draw_debug(self, debug_surface: pygame.Surface):
+        size = debug_surface.get_rect().size
         def mul(point, size):
             return point[0]*min(size), point[1]*min(size)
-        size = debug_surface.get_rect().size
         pygame.draw.line(debug_surface, (255,255,255), mul(self.center, size), mul(self.center+self.velocity*20, size), width=3)
         pygame.draw.circle(debug_surface, (255, 255, 255), mul(self.path[0], size), 5)
         pygame.draw.circle(debug_surface, (255, 255, 255), mul(self.path[-1], size), 5)
@@ -218,6 +222,112 @@ class PlayerSphere(Sphere):
             rotator_me_vector = -me_rotator_vector
             new_rotator_me_vector = rotator_me_vector.rotate(delta_angle)
             pygame.draw.line(debug_surface, (255,255,0), mul(self.rotating_around.center + new_rotator_me_vector, size), mul(self.rotating_around.center, size), width=3)
+
+
+def ray_intersects_sphere(ray: Ray, sphere: Sphere):
+    # https://math.stackexchange.com/a/4785487
+    diff = sphere.center - ray.origin
+    dir = ray.direction.normalize()
+    cx = dir.x * diff.x + dir.y * diff.y
+    cy = -dir.y * diff.x + dir.x * diff.y
+    if cx > 0 and -sphere.radius <= cy <= sphere.radius:
+        return True, cx
+    else:
+        return False, None
+
+
+class BotState(Enum):
+    WAITING = auto()
+    GOING_FOR_ROTATOR = auto()
+    ROTATING = auto()
+    GOING_FOR_SPHERE = auto()
+
+class BotPlayerSphere(PlayerSphere):
+    def __init__(self, center, velocity, radius, color):
+        super().__init__(center, velocity, radius, color)
+        self.last_state = None
+        self.botstate = BotState.WAITING
+        self.wait_time = 5
+        self.timer = 0
+        self.prev_spheres = 0
+
+    def calc_first_rotator_hit(self, rotators):
+        ray = Ray(self.center, self.velocity)
+        closest_rotator = None
+        closest_distance = 10
+        for rotator in rotators:
+            hit, distance = ray_intersects_sphere(ray, rotator)
+            if hit and distance < closest_distance:
+                closest_rotator = rotator
+                closest_distance = distance
+        return closest_rotator, closest_distance
+
+    def is_in_rotator(self, rotators):
+        for rotator in rotators:
+            if self.check_center_inside(rotator):
+                return True
+        return False
+
+    def calc_closest_sphere(self, spheres: list[Sphere]):
+        if self.rotating_around:
+            spheres = filter(lambda x: self.center.distance_squared_to(self.rotating_around.center) < x.center.distance_squared_to(self.rotating_around.center), spheres)
+        return min(spheres, key=lambda x:self.center.distance_squared_to(x.center))
+
+    def get_action(self, state: 'GameState', time_delta: float):
+        self.last_state = state
+
+        if self.botstate == BotState.WAITING:
+            if self.timer < self.wait_time:
+                # print('waiting for 5 secs:', state.timer)
+                self.timer += time_delta
+                return False # do not do anything for 5 seconds
+            else:
+                self.botstate = BotState.GOING_FOR_ROTATOR
+        elif self.botstate == BotState.GOING_FOR_ROTATOR:
+            if self.is_in_rotator(state.rotators) and self.rotating_around is None:
+                print('trying to catch rotator')
+                self.botstate = BotState.GOING_FOR_SPHERE
+                self.timer = 0
+                return True
+        elif self.botstate == BotState.GOING_FOR_SPHERE:
+            if self.timer > 5:
+                return True # rotating for too long
+            self.timer += time_delta
+            if len(self.trail) > self.prev_spheres:
+                self.botstate = BotState.GOING_FOR_ROTATOR
+                return False
+            # going for a sphere
+            sphere = self.calc_closest_sphere(state.active_spheres+state.inactive_spheres)
+            hit, distance = ray_intersects_sphere(Ray(self.center, self.velocity), sphere)
+            if hit:
+                if self.rotating_around is not None:
+                    print('trying to hit closest sphere from a rotator')
+                    return True
+                else:
+                    print('trying to hit closest sphere going straight for it')
+                    return False
+        self.timer += time_delta
+        return False
+
+    def draw_debug(self, debug_surface: Surface):
+        super().draw_debug(debug_surface)
+        size = debug_surface.get_rect().size
+        def mul(point):
+            return point[0]*min(size), point[1]*min(size)
+        state = self.last_state
+        if state is None: return
+        # rotator, distance = self.calc_first_rotator_hit(self.last_state.rotators)
+        # if rotator is not None:
+        #     pygame.draw.line(debug_surface, (255,255,255), mul(self.center), mul(rotator.center))
+        sphere = self.calc_closest_sphere(state.active_spheres+state.inactive_spheres)
+        pygame.draw.circle(debug_surface, self.color, mul(sphere.center), SPHERE_SIZE*min(size)/2)
+
+        ray = Ray(self.center, self.velocity)
+        hit, distance = ray_intersects_sphere(ray, sphere)
+        if hit:
+            pygame.draw.line(debug_surface, self.color, mul(self.center), mul(sphere.center))
+            # print(f'{ray}, {sphere}')
+
 
 @dataclass
 class Map:
@@ -243,6 +353,20 @@ class GameStage(Enum):
     RESTART_ROUND = 4
     END_SCREEN = 5
 
+class Bot(Enum):
+    IS_BOT_1 = auto()
+    IS_BOT_2 = auto()
+    IS_BOT_3 = auto()
+    IS_BOT_4 = auto()
+    IS_BOT_5 = auto()
+    IS_BOT_6 = auto()
+    IS_BOT_7 = auto()
+    IS_BOT_8 = auto()
+    IS_BOT_9 = auto()
+    IS_BOT_10 = auto()
+    IS_BOT_11 = auto()
+    IS_BOT_12 = auto()
+
 @dataclass
 class PlayerScore:
     old_score: int = -1
@@ -258,16 +382,16 @@ class GameState:
     inactive_spheres: list[Sphere]
     attacking_spheres: list[list[Sphere]]
     rotators: list[RotatorSphere]
-    def update_to_front(self, player_scores: list[int], how_to_win_text: str, stage: GameStage, timer: float, someone_won: Optional[tuple[int, int, int]]):
-        return GameStateFront(self.player_spheres, self.active_spheres, self.inactive_spheres, self.attacking_spheres, self.rotators,
-                              player_scores, how_to_win_text, stage, timer, someone_won)
+    timer: float
+    def update_to_front(self, player_scores: list[int], how_to_win_text: str, stage: GameStage, someone_won: Optional[tuple[int, int, int]]):
+        return GameStateFront(self.player_spheres, self.active_spheres, self.inactive_spheres, self.attacking_spheres, self.rotators, self.timer,
+                              player_scores, how_to_win_text, stage, someone_won)
 
 @dataclass
 class GameStateFront(GameState):
     player_scores: list[int]
     how_to_win_text: str
     stage: GameStage
-    timer: float
     someone_won: Optional[tuple[int, int, int]]
 
 class Game:
@@ -296,6 +420,7 @@ class Game:
         self.random = None
 
         self.player_spheres: list[PlayerSphere] = []
+        self.bot_player_spheres: list[BotPlayerSphere] = []
         self.active_spheres: list[Sphere] = []
         self.inactive_spheres: list[Sphere] = []
         self.attacking_spheres: list[list[Sphere]] = None
@@ -334,10 +459,11 @@ class Game:
         for key, (team, name) in self.colors.items():
             vel = Vector2()
             vel.from_polar((DEFAULT_SPEED, self.random.randint(0, 360)))
-            ps = PlayerSphere(Vector2(self.get_random_spawn_position(PLAYER_SIZE)),
-                              vel,
-                              PLAYER_SIZE,
-                              team.value)
+            if key in list(Bot):
+                ps = BotPlayerSphere(Vector2(0, 0), vel, PLAYER_SIZE, team.value)
+                self.bot_player_spheres.append(ps)
+            else:
+                ps = PlayerSphere(Vector2(0, 0), vel, PLAYER_SIZE, team.value)
             self.player_spheres.append(ps)
         self.attacking_spheres = [[] for _ in range(self.num_players)]
 
@@ -540,6 +666,15 @@ class Game:
 
 
     def update(self, time_delta: float):
+        # get bots actions
+        state = self.get_state()
+        bots_actions = []
+        for bot, key in zip(self.bot_player_spheres, Bot):
+            action = bot.get_action(state, time_delta)
+            if action:
+                bots_actions.append(key)
+        self.process_actions(bots_actions)
+
         # perform actions. actions were commited in process actions function
         if self.stage == GameStage.ROTATING_AROUND_CENTER:
             if self.timer < 3:
@@ -547,6 +682,7 @@ class Game:
                 self.timer += time_delta
             else:
                 self.stage = GameStage.GAMING
+                self.timer = 0
         elif self.stage == GameStage.GAMING:
             self.perform_actions()
 
@@ -558,8 +694,10 @@ class Game:
             for i in self.player_spheres:
                 i.velocity.scale_to_length(DEFAULT_SPEED)
 
+            self.timer += time_delta
+
             winner = [(index, p.color) for index, p in enumerate(self.player_spheres) if p.alive]
-            if len(winner) == 1:
+            if len(winner) == 1 and self.num_players > 1:
                 self.stage = GameStage.SHOWING_RESULTS
                 self.timer = 0
                 self.process_results(winner[0][0])
@@ -606,15 +744,15 @@ class Game:
 
 
     def get_state(self):
-        return {
-            'player_spheres': self.player_spheres,
-            'active_spheres': self.active_spheres,
-            'inactive_spheres': self.inactive_spheres,
-            'attacking_spheres': self.attacking_spheres,
-            }
+        return GameState(self.player_spheres,
+                         self.active_spheres,
+                         self.inactive_spheres,
+                         self.attacking_spheres,
+                         self.rotators,
+                         self.timer)
 
     def get_front_state(self):
-        return self.get_state().update_to_front(self.player_scores, self.how_to_win_text, self.stage, self.timer, self.someone_won)
+        return self.get_state().update_to_front(self.player_scores, self.how_to_win_text, self.stage, self.someone_won)
 
 
     def set_state(self, state: GameState):
@@ -623,8 +761,8 @@ class Game:
         self.active_spheres = state.active_spheres
         self.inactive_spheres = state.inactive_spheres
         self.attacking_spheres = state.attacking_spheres
+        self.timer = state.timer
         # self.stage = state.stage
-        # self.timer = state.timer
 
     def draw_debug(self, debug_surface: pygame.Surface):
         for i in self.player_spheres:

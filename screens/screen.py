@@ -10,14 +10,15 @@ from collections import deque
 from typing import Any
 
 import pygame
+from pygame import Surface
 import pygame.freetype
 pygame.freetype.init()
 import pygame_gui
 from pygame_gui.elements import UIButton, UITextEntryLine
 from pygame_gui.windows import UIMessageWindow
 
-from back import Game, Team
-from front import draw_game, calculate_players_leaderboard_positions, draw_player_leaderboard
+from back import Game, Team, Bot
+from front import draw_game, calculate_players_leaderboard_positions, draw_player_leaderboard, draw_sphere
 
 font = pygame.freetype.SysFont('arial', 25)
 
@@ -58,7 +59,7 @@ class Screen:
                     if event.window is None:
                         self.on_window_size_changed((event.x, event.y))
                 self.process_events(event)
-
+                self.manager.process_events(event)
             self.surface.blit(self.background, (0, 0))
             self.manager.update(time_delta)
             self.update(time_delta)
@@ -120,7 +121,6 @@ class GameScreen(Screen):
                 self.is_paused = True
             if event.key == pygame.K_F5:
                 self.restart = True
-            self.manager.process_events(event)
 
     def update(self, time_delta):
             self.game_surface.fill(pygame.Color('#000000'))
@@ -145,43 +145,82 @@ class GameScreen(Screen):
 
 
 class PickColorScreen(Screen):
-    def __init__(self, surface: pygame.Surface):
+    MIN_PLAYERS = 1
+    def __init__(self, surface: pygame.Surface, draw_bots_buttons=True):
         super().__init__(surface)
         self.key_map : dict[int, tuple[Team, str]] = {}
         self.key_team_iter_map = {}
         self.unavailable_teams = []
         self.order = []
         self.captured_keys = []
+        rect = pygame.Rect(0, 0, 100, 100)
+        rect.right = -30
+        self.add_bot_button = UIButton(rect, 'Add bot', self.manager, anchors={'right': 'right'}, visible=draw_bots_buttons)
+        self.remove_bot_button = UIButton(rect, 'Remove bot', self.manager, anchors={'right': 'right', 'top_target': self.add_bot_button}, visible=draw_bots_buttons)
+        self.num_bots = 0
 
     def process_events(self, event):
         if event.type == pygame.KEYDOWN:
             self.captured_keys.append((event.key, pygame.key.name(event.key)))
+        if event.type == pygame_gui.UI_BUTTON_PRESSED:
+            if event.ui_element == self.add_bot_button:
+                self.add_bot()
+            elif event.ui_element == self.remove_bot_button:
+                self.remove_bot()
 
-    def process_player_action(self, key, name):
+    def find_available_team(self, key):
         if key not in self.key_team_iter_map:
             self.key_team_iter_map[key] = iter(Team)
+
+        team = None
+        if len(self.unavailable_teams) == len(Team):
+            return None
+        while True:
+            try:
+                team = next(self.key_team_iter_map[key])
+                if team in self.unavailable_teams:
+                    continue
+                return team
+            except StopIteration:
+                self.key_team_iter_map[key] = iter(Team)
+
+    def add_bot(self):
+        if self.num_bots > 12: return
+        bot_enum = list(Bot)[self.num_bots]
+        team = self.find_available_team(bot_enum)
+        name = f'Bot {self.num_bots+1}'
+        self.add_player(bot_enum, team, name)
+        self.num_bots += 1
+
+    def remove_bot(self):
+        if self.num_bots == 0: return
+        bot_enum = list(Bot)[self.num_bots-1]
+        self.remove_player(bot_enum)
+        self.num_bots -= 1
+
+    def add_player(self, key, team, name):
+        self.key_map[key] = team, name
+        self.unavailable_teams.append(team)
+        if key not in self.order:
+            self.order.append(key)
+        print(self.key_map)
+
+    def remove_player(self, key):
+        team, name = self.key_map.pop(key)
+        self.unavailable_teams.remove(team)
+
+    def process_player_action(self, key, name):
         if key in self.key_map:
-            team, name = self.key_map.pop(key)
-            self.unavailable_teams.remove(team)
-        elif len(self.unavailable_teams) < len(Team):
-            team = None
-            while True:
-                try:
-                    team = next(self.key_team_iter_map[key])
-                    if team in self.unavailable_teams:
-                        continue
-                    self.key_map[key] = team, name
-                    self.unavailable_teams.append(team)
-                    break
-                except StopIteration:
-                    self.key_team_iter_map[key] = iter(Team)
-            if key not in self.order:
-                self.order.append(key)
+            self.remove_player(key)
+        else:
+            team = self.find_available_team(key)
+            if team is not None:
+                self.add_player(key, team, name)
 
     def update(self, time_delta):
         for key, name in self.captured_keys:
             if key == pygame.K_SPACE:
-                if len(self.key_map) >= 2 and self.is_running:
+                if len(self.key_map) >= self.MIN_PLAYERS and self.is_running:
                     self.return_value = self.key_map
                     self.is_running = False
             else:
@@ -260,3 +299,74 @@ class LocalOnlinePickerScreen(Screen):
     def update(self, time_delta):
         self.manager.update(time_delta)
         self.manager.draw_ui(self.surface)
+
+class TestRayIntersectSphere(Screen):
+    def __init__(self, surface: Surface):
+        super().__init__(surface)
+        self.state = ''
+        self.down_pos = None
+        self.up_pos = None
+        self.ray = None
+        self.sphere = None
+
+    def process_events(self, event):
+        super().process_events(event)
+        from pygame import Vector2
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            self.down_pos = Vector2(event.pos)
+            self.up_pos = None
+            self.state = 'hold'
+        elif event.type == pygame.MOUSEMOTION:
+            self.up_pos = Vector2(event.pos)
+        elif event.type == pygame.MOUSEBUTTONUP:
+            self.up_pos = Vector2(event.pos)
+            self.state = 'release'
+
+    def update(self, time_delta):
+        super().update(time_delta)
+        from back import Ray, Sphere, ray_intersects_sphere
+        from pygame import Vector2
+
+        if self.down_pos is not None and self.up_pos is not None:
+            if self.down_pos == self.up_pos:
+                self.sphere = Sphere(self.down_pos, Vector2(0, 0), 10)
+                self.down_pos = None
+                self.up_pos = None
+            else:
+                self.ray = Ray(self.down_pos, self.up_pos - self.down_pos)
+                if self.state == 'release':
+                    self.down_pos = None
+                    self.up_pos = None
+                    self.state = ''
+
+
+        if self.ray is not None and self.sphere is not None:
+            intersects, distance = ray_intersects_sphere(self.ray, self.sphere)
+
+            sphere = self.sphere
+            ray = self.ray
+            diff = sphere.center - ray.origin
+            dir = ray.direction.normalize()
+            cx = dir.x * diff.x + dir.y * diff.y
+            cy = -dir.y * diff.x + dir.x * diff.y
+            pygame.draw.line(self.surface, (255, 255, 255), ray.origin, ray.origin+diff)
+            font.render_to(self.surface, (30, 30), str(cx))
+            font.render_to(self.surface, (30, 60), str(cy))
+            if cx > 0 and -sphere.radius <= cy <= sphere.radius:
+                # return True, cx
+                pass
+            else:
+                # return False, None
+                pass
+
+            if intersects:
+                self.ray_color = (0, 255, 0)
+            else:
+                self.ray_color = (255, 0, 0)
+        else:
+            self.ray_color = (255, 255, 255)
+
+        if self.ray is not None:
+            pygame.draw.line(self.surface, self.ray_color, self.ray.origin, self.ray.origin+self.ray.direction)
+        if self.sphere is not None:
+            draw_sphere(self.surface, self.sphere, (1, 1))
