@@ -49,7 +49,7 @@ class ClientThreadingTCPServer(socketserver.ThreadingTCPServer):
 
 class ClientPickColorScreen(PickColorScreen):
     def __init__(self, surface: pygame.Surface, host, port=9001):
-        super().__init__(surface)
+        super().__init__(surface, draw_bots_buttons=False)
         self.host = host
         self.port = port
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
