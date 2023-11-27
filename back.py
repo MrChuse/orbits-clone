@@ -251,8 +251,27 @@ class PlayerScore:
     new_position: int = -1
     color: Optional[tuple[int,int,int]] = None
 
+@dataclass
+class GameState:
+    player_spheres: list[PlayerSphere]
+    active_spheres: list[Sphere]
+    inactive_spheres: list[Sphere]
+    attacking_spheres: list[list[Sphere]]
+    rotators: list[RotatorSphere]
+    def update_to_front(self, player_scores: list[int], how_to_win_text: str, stage: GameStage, timer: float, someone_won: Optional[tuple[int, int, int]]):
+        return GameStateFront(self.player_spheres, self.active_spheres, self.inactive_spheres, self.attacking_spheres, self.rotators,
+                              player_scores, how_to_win_text, stage, timer, someone_won)
+
+@dataclass
+class GameStateFront(GameState):
+    player_scores: list[int]
+    how_to_win_text: str
+    stage: GameStage
+    timer: float
+    someone_won: Optional[tuple[int, int, int]]
+
 class Game:
-    def __init__(self, colors: dict[int, Team], seed=None) -> None:
+    def __init__(self, colors: dict[int, tuple[Team, str]], seed=None) -> None:
         size = (2, 1)
         self.size = size
         self.leftwall = None
@@ -595,23 +614,17 @@ class Game:
             }
 
     def get_front_state(self):
-        d = self.get_state()
-        d['rotators'] = self.rotators
-        d['player_scores'] = self.player_scores
-        d['how_to_win_text'] = self.how_to_win_text
-        d['stage'] = self.stage
-        d['timer'] = self.timer
-        d['someone_won'] = self.someone_won
-        return d
+        return self.get_state().update_to_front(self.player_scores, self.how_to_win_text, self.stage, self.timer, self.someone_won)
 
-    def set_state(self, state: dict):
-        # self.rotators = state['rotators']
-        self.player_spheres = state['player_spheres']
-        self.active_spheres = state['active_spheres']
-        self.inactive_spheres = state['inactive_spheres']
-        self.attacking_spheres = state['attacking_spheres']
-        # self.stage = state['stage']
-        # self.timer = state['timer']
+
+    def set_state(self, state: GameState):
+        self.rotators = state.rotators
+        self.player_spheres = state.player_spheres
+        self.active_spheres = state.active_spheres
+        self.inactive_spheres = state.inactive_spheres
+        self.attacking_spheres = state.attacking_spheres
+        # self.stage = state.stage
+        # self.timer = state.timer
 
     def draw_debug(self, debug_surface: pygame.Surface):
         for i in self.player_spheres:
