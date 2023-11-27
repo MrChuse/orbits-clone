@@ -284,36 +284,37 @@ class BotPlayerSphere(PlayerSphere):
                 self.timer += time_delta
                 return False # do not do anything for 5 seconds
             else:
+                print(Team(self.color).name, 'waiting ended')
                 self.botstate = BotState.GOING_FOR_ROTATOR
         elif self.botstate == BotState.GOING_FOR_ROTATOR:
             if self.rotating_around:
                 self.botstate = BotState.GOING_FOR_SPHERE
                 self.timer = 0
-                print('already rotating')
+                print(Team(self.color).name, 'going for rotator success')
                 return False
             if self.is_in_rotator(state.rotators) and self.rotating_around is None:
-                print('caught rotator')
-                self.botstate = BotState.GOING_FOR_SPHERE
-                self.timer = 0
+                print(Team(self.color).name, 'going for rotator try')
+                # self.botstate = BotState.GOING_FOR_SPHERE
+                # self.timer = 0
                 return True
         elif self.botstate == BotState.GOING_FOR_SPHERE:
-            if self.timer > 5:
+            if self.timer > 10:
                 self.botstate = BotState.GOING_FOR_ROTATOR
                 self.timer = 0
-                print('rotating for too long')
+                print(Team(self.color).name, 'going for sphere for too long')
                 return True # rotating for too long
             self.timer += time_delta
             if len(self.trail) > self.prev_spheres:
                 self.botstate = BotState.GOING_FOR_ROTATOR
                 self.prev_spheres = len(self.trail)
-                print('caught a sphere')
+                print(Team(self.color).name, 'caught a sphere probably')
                 return False
             # going for a sphere
             sphere = self.calc_closest_sphere(state.active_spheres+state.inactive_spheres)
             hit, distance = ray_intersects_sphere(Ray(self.center, self.velocity), sphere)
             if hit:
                 if self.rotating_around is not None:
-                    print('trying to hit closest sphere from a rotator')
+                    print(Team(self.color).name, 'trying to hit closest sphere from a rotator')
                     return True
                 else:
                     # print('trying to hit closest sphere going straight for it')
@@ -467,6 +468,7 @@ class Game:
 
         self.starting_angle = self.random.uniform(0, 360)
 
+        self.bot_player_spheres = []
         self.player_spheres = []
         for key, (team, name) in self.colors.items():
             vel = Vector2()
@@ -686,6 +688,8 @@ class Game:
         for bot, key in zip(self.bot_player_spheres, Bot):
             action = bot.get_action(state, time_delta)
             if action:
+                print(f'{Team(bot.color).name} action at {self.timer:.1f}')
+                # print(f'{self.bot_player_spheres}')
                 bots_actions.append(key)
         self.process_actions(bots_actions)
 

@@ -203,7 +203,6 @@ class PickColorScreen(Screen):
         self.unavailable_teams.append(team)
         if key not in self.order:
             self.order.append(key)
-        print(self.key_map)
 
     def remove_player(self, key):
         team, name = self.key_map.pop(key)
