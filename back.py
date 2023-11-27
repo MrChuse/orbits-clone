@@ -408,7 +408,7 @@ class Game:
         self.colors = colors
         self.num_players = 0
         self.keys_list = []
-        self.actions_in_last_frame = []
+        self.actions_in_last_frame: list[int] = []
         self.register_players_and_keys(list(self.colors.keys())) # set things above
         self.old_scores = []
         self.scores = [0] * self.num_players
@@ -467,6 +467,7 @@ class Game:
             self.player_spheres.append(ps)
         self.attacking_spheres = [[] for _ in range(self.num_players)]
 
+        self.inactive_spheres = []
         self.active_spheres = []
         for i in range(10):
             self.add_random_sphere()
@@ -521,7 +522,7 @@ class Game:
             return True
 
     def process_actions(self, actions):
-        self.actions_in_last_frame: list[int] = []
+        # self.actions_in_last_frame: list[int] = []
         for action in actions:
             if action in self.keys_list:
                 self.actions_in_last_frame.append(self.keys_list.index(action))
@@ -550,6 +551,7 @@ class Game:
                             self.attacking_spheres[player].append(attacking_sphere)
                 if self.stage == GameStage.END_SCREEN:
                     self.timer += 2
+        self.actions_in_last_frame = []
 
     def update_positions_and_wall_collisions(self):
         for i in self.player_spheres:

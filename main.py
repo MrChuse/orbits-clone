@@ -15,6 +15,21 @@ from screens import (GameScreen, PickColorScreen, LocalOnlinePickerScreen,
 # trash slot for inventory
 # controls for apiary and inventory
 
+def test_ray_intersect():
+    from screens.screen import TestRayIntersectSphere
+
+    pygame.init()
+    pygame.display.set_caption('Orbits clone')
+    settings = {'fullscreen': False,
+                'language': 'en'}
+    if settings['fullscreen']:
+        window_surface = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+    else:
+        window_surface = pygame.display.set_mode((600, 300), pygame.RESIZABLE)
+
+
+    tris = TestRayIntersectSphere(window_surface)
+    tris.main()
 
 def main():
     pygame.init()
@@ -59,3 +74,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+    # test_ray_intersect()
