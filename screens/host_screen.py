@@ -42,6 +42,8 @@ class HostThreadedTCPRequestHandler(BaseRequestHandler):
         while True:
             try:
                 command, data = recv_command(self.request)
+                if command == '':
+                    break
                 if command != Command.KEY:
                     continue
                 self.server.client_captures.append((client_number, data, f'client{client_number} {pygame.key.name(data)}'))
@@ -129,7 +131,10 @@ class HostGameScreen(GameScreen):
     def send_to_all_clients(self, commands: list):
         for sock in self.server.client_sockets:
             for command, value in commands:
-                send_command(sock, command, value)
+                try:
+                    send_command(sock, command, value)
+                except ConnectionResetError:
+                    pass
 
     def update(self, time_delta):
         commands = []

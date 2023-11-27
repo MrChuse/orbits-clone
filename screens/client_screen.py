@@ -45,7 +45,7 @@ class ClientThreadingTCPServer(socketserver.ThreadingTCPServer):
         self.on_disconnect = on_disconnect
         self.seed = None
         self.game_state = None
-        self.restart = True
+        self.restart = False
 
 class ClientPickColorScreen(PickColorScreen):
     def __init__(self, surface: pygame.Surface, host, port=9001):
@@ -126,7 +126,7 @@ class ClientGameScreen(GameScreen):
 
     def update(self, time_delta):
         if self.server.restart:
-            self.game.restart_round(self.server.seed)
+            self.game.restart_round()
             self.server.restart = False
         for key in self.actions:
             send_command(self.sock, Command.KEY, key)

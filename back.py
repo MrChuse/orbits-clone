@@ -464,9 +464,9 @@ class GameState:
     rotators: list[RotatorSphere]
     timer: float
     death_order: list[int]
-    random: random.Random
+    # random_: Optional[random.Random] = None
     def update_to_front(self, player_scores: list[PlayerScore], how_to_win_text: str, stage: GameStage, someone_won: Optional[tuple[int, int, int]]):
-        return GameStateFront(self.player_spheres, self.active_spheres, self.inactive_spheres, self.attacking_spheres, self.rotators, self.timer, self.death_order, self.random,
+        return GameStateFront(self.player_spheres, self.active_spheres, self.inactive_spheres, self.attacking_spheres, self.rotators, self.timer, self.death_order,# self.random_,
                               player_scores, how_to_win_text, stage, someone_won)
 
 @dataclass
@@ -499,7 +499,9 @@ class Game:
         self.load_map(map1)
 
         self.seed = seed
+        print(self.seed)
         self.random = None
+        self.total_uniforms = 0
 
         self.player_spheres: list[PlayerSphere] = []
         self.bot_player_spheres: list[BotPlayerSphere] = []
@@ -522,26 +524,28 @@ class Game:
         self.how_to_win_text = ''
         self.player_scores = None
 
-        self.restart_round(seed)
-
+        self.restart_game(seed)
 
     def load_map(self, map_: Map):
         for i in map_.rotators_coords:
             self.rotators.append(RotatorSphere(Vector2(i[0]*self.size[0], i[1]*self.size[1]), i[2]))
 
-    def restart_round(self, seed=None):
-        self.seed = seed
-        if self.seed is None:
-            self.seed = random.randint(0, 1000000000)
-        self.random = random.Random(self.seed)
+    def random_uniform(self, a, b, from_where='unknown'):
+        self.total_uniforms += 1
+        # print('uniform', self.total_uniforms, from_where)
+        return self.random.uniform(a, b)
 
-        self.starting_angle = self.random.uniform(0, 360)
+    def random_randint(self, a, b):
+        # print('randint')
+        return self.random.randint(a, b)
+
+    def restart_round(self):
+        self.starting_angle = self.random_uniform(0, 360, 'starting angle')
 
         self.bot_player_spheres = []
         self.player_spheres = []
         for key, (team, name) in self.colors.items():
-            vel = Vector2()
-            vel.from_polar((DEFAULT_SPEED, self.random.randint(0, 360)))
+            vel = Vector2(0, 0)
             if key in list(Bot):
                 ps = BotPlayerSphere(Vector2(0, 0), vel, PLAYER_SIZE, team.value)
                 self.bot_player_spheres.append(ps)
@@ -561,7 +565,14 @@ class Game:
         self.timer = 0
         self.death_order: list[int] = []
 
-    def restart_game(self):
+    def restart_game(self, seed=None):
+        self.seed = seed
+        if self.seed is None:
+            self.seed = random.randint(0, 1000000000)
+        self.random = random.Random(self.seed)
+        self.total_uniforms = 0
+        print('reset seed to', seed, 'and uniforms to 0')
+
         self.scores = [0] * self.num_players
         self.restart_round()
 
@@ -581,8 +592,8 @@ class Game:
         self.actions_in_last_frame = []
 
     def get_random_spawn_position(self, radius):
-        return (self.random.uniform(radius, self.size[0]-radius),
-                self.random.uniform(radius, self.size[1]-radius))
+        return (self.random_uniform(radius, self.size[0]-radius, 'random pos x'),
+                self.random_uniform(radius, self.size[1]-radius, 'random pos y'))
 
     def add_random_sphere(self):
         self.active_spheres.append(Sphere(Vector2(self.get_random_spawn_position(SPHERE_SIZE)),
@@ -837,8 +848,8 @@ class Game:
                          self.attacking_spheres,
                          self.rotators,
                          self.timer,
-                         self.death_order,
-                         self.random)
+                         self.death_order,)
+                        #  self.random)
 
     def get_front_state(self):
         return self.get_state().update_to_front(self.player_scores, self.how_to_win_text, self.stage, self.someone_won)
@@ -852,7 +863,7 @@ class Game:
         self.attacking_spheres = state.attacking_spheres
         self.timer = state.timer
         self.death_order = state.death_order
-        self.random = state.random
+        # self.random = state.random_
         # self.stage = state.stage
 
     def draw_debug(self, debug_surface: pygame.Surface):
