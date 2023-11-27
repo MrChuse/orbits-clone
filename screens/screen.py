@@ -58,6 +58,10 @@ class Screen:
                 elif event.type == pygame.WINDOWSIZECHANGED:
                     if event.window is None:
                         self.on_window_size_changed((event.x, event.y))
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        self.force_quit = True
+                        self.is_running = False
                 self.process_events(event)
                 self.manager.process_events(event)
             self.surface.blit(self.background, (0, 0))
