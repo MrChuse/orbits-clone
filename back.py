@@ -459,8 +459,9 @@ class GameState:
     rotators: list[RotatorSphere]
     timer: float
     death_order: list[int]
+    random: random.Random
     def update_to_front(self, player_scores: list[PlayerScore], how_to_win_text: str, stage: GameStage, someone_won: Optional[tuple[int, int, int]]):
-        return GameStateFront(self.player_spheres, self.active_spheres, self.inactive_spheres, self.attacking_spheres, self.rotators, self.timer, self.death_order,
+        return GameStateFront(self.player_spheres, self.active_spheres, self.inactive_spheres, self.attacking_spheres, self.rotators, self.timer, self.death_order, self.random,
                               player_scores, how_to_win_text, stage, someone_won)
 
 @dataclass
@@ -636,12 +637,12 @@ class Game:
             if self.check_wall_collision(i):
                 i.rotating_around = None
             i.update()
-        for players_spheres in self.attacking_spheres:
-            for i in players_spheres:
-                if self.check_wall_collision(i):
+        for player, attacking_spheres in zip(self.player_spheres, self.attacking_spheres):
+            for i in attacking_spheres:
+                if self.check_wall_collision(i) and not player.is_dodging():
                     i.color = (255, 255, 255)
                     self.inactive_spheres.append(i)
-                    players_spheres.remove(i)
+                    attacking_spheres.remove(i)
                     i.damping_factor = 0.98
                 i.update()
         for i in self.active_spheres:
@@ -831,7 +832,8 @@ class Game:
                          self.attacking_spheres,
                          self.rotators,
                          self.timer,
-                         self.death_order)
+                         self.death_order,
+                         self.random)
 
     def get_front_state(self):
         return self.get_state().update_to_front(self.player_scores, self.how_to_win_text, self.stage, self.someone_won)
@@ -845,6 +847,7 @@ class Game:
         self.attacking_spheres = state.attacking_spheres
         self.timer = state.timer
         self.death_order = state.death_order
+        self.random = state.random
         # self.stage = state.stage
 
     def draw_debug(self, debug_surface: pygame.Surface):
