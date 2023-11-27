@@ -458,6 +458,7 @@ class GameState:
     attacking_spheres: list[list[Sphere]]
     rotators: list[RotatorSphere]
     timer: float
+    death_order: list[int]
     def update_to_front(self, player_scores: list[PlayerScore], how_to_win_text: str, stage: GameStage, someone_won: Optional[tuple[int, int, int]]):
         return GameStateFront(self.player_spheres, self.active_spheres, self.inactive_spheres, self.attacking_spheres, self.rotators, self.timer,
                               player_scores, how_to_win_text, stage, someone_won)
@@ -829,7 +830,8 @@ class Game:
                          self.inactive_spheres,
                          self.attacking_spheres,
                          self.rotators,
-                         self.timer)
+                         self.timer,
+                         self.death_order)
 
     def get_front_state(self):
         return self.get_state().update_to_front(self.player_scores, self.how_to_win_text, self.stage, self.someone_won)
@@ -842,6 +844,7 @@ class Game:
         self.inactive_spheres = state.inactive_spheres
         self.attacking_spheres = state.attacking_spheres
         self.timer = state.timer
+        self.death_order = state.death_order
         # self.stage = state.stage
 
     def draw_debug(self, debug_surface: pygame.Surface):

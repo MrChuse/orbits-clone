@@ -34,7 +34,7 @@ def test_ray_intersect():
 def main():
     pygame.init()
     pygame.display.set_caption('Orbits clone')
-    settings = {'fullscreen': True,
+    settings = {'fullscreen': False,
                 'language': 'en'}
     if settings['fullscreen']:
         window_surface = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
