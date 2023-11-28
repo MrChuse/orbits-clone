@@ -8,11 +8,12 @@ from pygame import Surface, Vector2
 import pygame.freetype
 pygame.freetype.init()
 import pygame_gui
-from pygame_gui.elements import UIButton, UITextEntryLine
+from pygame_gui.elements import UIButton, UITextEntryLine, UIDropDownMenu
 from pygame_gui.windows import UIMessageWindow
 
-from back import Game, Team, Bot, Ray, Sphere
+from back import Game, Team, BotKeys, Ray, Sphere, PlayerSphere
 from front import draw_game, calculate_players_leaderboard_positions, draw_player_leaderboard, draw_sphere
+from bots import bots
 
 font = pygame.freetype.SysFont('arial', 25)
 
@@ -146,7 +147,7 @@ class PickColorScreen(Screen):
     MIN_PLAYERS = 1
     def __init__(self, surface: pygame.Surface, draw_bots_buttons=True):
         super().__init__(surface)
-        self.key_map : dict[int, tuple[Team, str]] = {}
+        self.key_map : dict[int, tuple[Team, str, Any]] = {}
         self.key_team_iter_map = {}
         self.unavailable_teams = []
         self.order = []
@@ -155,6 +156,10 @@ class PickColorScreen(Screen):
         rect.right = -30
         self.add_bot_button = UIButton(rect, 'Add bot', self.manager, anchors={'right': 'right'}, visible=draw_bots_buttons)
         self.remove_bot_button = UIButton(rect, 'Remove bot', self.manager, anchors={'right': 'right', 'top_target': self.add_bot_button}, visible=draw_bots_buttons)
+        options = [bot.__name__ for bot in bots]
+        self.bots = {bot.__name__: bot for bot in bots}
+        rect.height = 30
+        self.pick_bot = UIDropDownMenu(options, options[0], rect, self.manager, anchors={'right': 'right', 'top_target': self.remove_bot_button}, visible=draw_bots_buttons)
         self.num_bots = 0
 
     def process_events(self, event):
@@ -162,9 +167,9 @@ class PickColorScreen(Screen):
             self.captured_keys.append((event.key, pygame.key.name(event.key)))
         if event.type == pygame_gui.UI_BUTTON_PRESSED:
             if event.ui_element == self.add_bot_button:
-                self.add_bot()
+                self.add_bot(self.bots[self.pick_bot.selected_option])
             elif event.ui_element == self.remove_bot_button:
-                self.remove_bot()
+                self.remove_bot(self.bots[self.pick_bot.selected_option])
 
     def find_available_team(self, key):
         if key not in self.key_team_iter_map:
@@ -182,28 +187,28 @@ class PickColorScreen(Screen):
             except StopIteration:
                 self.key_team_iter_map[key] = iter(Team)
 
-    def add_bot(self):
+    def add_bot(self, BotClass):
         if self.num_bots == 12: return
-        bot_enum = list(Bot)[self.num_bots]
+        bot_enum = list(BotKeys)[self.num_bots]
         team = self.find_available_team(bot_enum)
-        name = f'Bot {self.num_bots+1}'
-        self.add_player(bot_enum, team, name)
+        name = f'{BotClass.__name__} {self.num_bots+1}'
+        self.add_player(bot_enum, team, name, BotClass)
         self.num_bots += 1
 
     def remove_bot(self):
         if self.num_bots == 0: return
-        bot_enum = list(Bot)[self.num_bots-1]
+        bot_enum = list(BotKeys)[self.num_bots-1]
         self.remove_player(bot_enum)
         self.num_bots -= 1
 
-    def add_player(self, key, team, name):
-        self.key_map[key] = team, name
+    def add_player(self, key, team, name, PlayerClass):
+        self.key_map[key] = team, name, PlayerClass
         self.unavailable_teams.append(team)
         if key not in self.order:
             self.order.append(key)
 
     def remove_player(self, key):
-        team, name = self.key_map.pop(key)
+        team, name, PlayerClass = self.key_map.pop(key)
         self.unavailable_teams.remove(team)
 
     def process_player_action(self, key, name):
@@ -212,7 +217,7 @@ class PickColorScreen(Screen):
         else:
             team = self.find_available_team(key)
             if team is not None:
-                self.add_player(key, team, name)
+                self.add_player(key, team, name, PlayerSphere)
 
     def update(self, time_delta):
         for key, name in self.captured_keys:
@@ -229,7 +234,7 @@ class PickColorScreen(Screen):
         surf2, textsize2 = font.render('then hit space', (255, 255, 255), size=32)
         self.surface.blit(surf1, (30, 30))
         self.surface.blit(surf2, (30, size[1] - 30 - textsize2[1]))
-        for key, (team, name) in self.key_map.items():
+        for key, (team, name, PlayerClass) in self.key_map.items():
             i = self.order.index(key)
             pos = calculate_players_leaderboard_positions(size, i)
             draw_player_leaderboard(self.surface, pos, name, team.value)
