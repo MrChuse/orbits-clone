@@ -58,8 +58,15 @@ def recv_command(sock: socket.socket, *args):
         print(e)
     if isinstance(command, Command):
         if command == Command.STT:
-            value = sock.recv(args[0])
-            # print('recv', command.value, value[:10])
+            received_length = 0
+            need_to_receive = args[0]
+            value = b''
+            while received_length < args[0]: # may not receive in one go
+                received = sock.recv(need_to_receive)
+                # print('recv', command.value, len(received))
+                value += received
+                received_length += len(received)
+                need_to_receive -= len(received)
         else:
             value = recv_int(sock)
             # print('recv', command.value, value)

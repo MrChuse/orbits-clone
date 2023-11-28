@@ -15,7 +15,7 @@ class ClientPickColorScreen(PickColorScreen):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self.sock.connect((self.host, self.port))
-        except ConnectionRefusedError as e:
+        except (ConnectionRefusedError, TimeoutError) as e:
             print(e)
 
 

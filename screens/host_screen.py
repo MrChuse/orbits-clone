@@ -51,7 +51,6 @@ class HostPickColorScreen(PickColorScreen):
                 self.server.seed = random.randint(0, 1000000000)
                 if len(self.key_map) >= 2 and self.is_running:
                     self.return_value = self.key_map, self.server
-                    print(self.return_value)
                     self.is_running = False
                     commands.append((Command.STR, key))
                     commands.append((Command.SEE, self.server.seed))
