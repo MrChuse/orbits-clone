@@ -137,7 +137,7 @@ class Game:
             pos = Vector2(0, 0)
             vel = Vector2(0, 0)
             ps = PlayerClass(pos, vel, PLAYER_SIZE, team.value)
-            if isinstance(PlayerClass, Bot):
+            if isinstance(ps, Bot):
                 self.bot_player_spheres.append(ps)
             self.player_spheres.append(ps)
         self.attacking_spheres = [[] for _ in range(self.num_players)]

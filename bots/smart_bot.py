@@ -3,7 +3,7 @@ import pygame
 import pygame.freetype
 pygame.freetype.init()
 
-from back.core import PlayerSphere, Sphere, GameState, SPHERE_SIZE
+from back.core import Sphere, GameState, SPHERE_SIZE, Team
 from . import Bot
 
 class BotState(Enum):
