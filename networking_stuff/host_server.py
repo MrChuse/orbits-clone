@@ -15,8 +15,9 @@ class Client:
 
 class RememberingClientsTCPServer(ThreadingTCPServer):
     daemon_threads = True
-    def __init__(self, server_address: Any, RequestHandlerClass: Callable[[Any, Any, Any], BaseRequestHandler], bind_and_activate: bool = True) -> None:
+    def __init__(self, server_address: Any, client_port, RequestHandlerClass: Callable[[Any, Any, Any], BaseRequestHandler], bind_and_activate: bool = True) -> None:
         super().__init__(server_address, RequestHandlerClass, bind_and_activate)
+        self.client_port = client_port
         self.clients: list[Client] = []
 
     def on_connect(self, addr):
@@ -24,7 +25,7 @@ class RememberingClientsTCPServer(ThreadingTCPServer):
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
-            sock.connect((addr[0], 9002))
+            sock.connect((addr[0], self.client_port))
         except ConnectionRefusedError as e:
             print(addr, e)
             return

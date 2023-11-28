@@ -6,11 +6,9 @@ import time
 
 from networking_stuff import RememberingClientsTCPRequestHandler, RememberingClientsTCPServer
 
-HOST, PORT = "0.0.0.0", 9001
-
 class Server(RememberingClientsTCPServer):
-    def __init__(self, server_address: Any, RequestHandlerClass: Callable[[Any, Any, Any], BaseRequestHandler], bind_and_activate: bool = True) -> None:
-        super().__init__(server_address, RequestHandlerClass, bind_and_activate)
+    def __init__(self, server_address, client_port, RequestHandlerClass: Callable[[Any, Any, Any], BaseRequestHandler], bind_and_activate: bool = True) -> None:
+        super().__init__(server_address, client_port, RequestHandlerClass, bind_and_activate)
         self.received = []
 class Handler(RememberingClientsTCPRequestHandler):
     server_class = Server
@@ -21,7 +19,7 @@ class Handler(RememberingClientsTCPRequestHandler):
             # print('received', data)
             self.server.received.append(data)
 
-server = Server((HOST, PORT), Handler)
+server = Server(("0.0.0.0", 9001), 9002, Handler)
 
 ip, port = server.server_address
 
