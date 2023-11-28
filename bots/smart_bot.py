@@ -2,6 +2,7 @@ from enum import Enum, auto
 import pygame
 import pygame.freetype
 pygame.freetype.init()
+font = pygame.freetype.SysFont('arial', 25)
 
 from back.core import Sphere, GameState, SPHERE_SIZE, Team
 from . import Bot
@@ -22,7 +23,6 @@ class SmartBot(Bot):
         self.wait_time = 5
         self.timer = 0
         self.prev_spheres = 0
-        self.font = pygame.freetype.SysFont('arial', 25)
 
     def calc_first_rotator_hit(self, rotators):
         ray = self.get_ray()
@@ -131,7 +131,7 @@ class SmartBot(Bot):
         # rotator, distance = self.calc_first_rotator_hit(self.last_state.rotators)
         # if rotator is not None:
         #     pygame.draw.line(debug_surface, (255,255,255), mul(self.center), mul(rotator.center))
-        self.font.render_to(debug_surface, mul(self.center), f'{self.botstate.name} {self.timer:.1f}', self.color, size=10)
+        font.render_to(debug_surface, mul(self.center), f'{self.botstate.name} {self.timer:.1f}', self.color, size=10)
         sphere = self.calc_closest_sphere(state.active_spheres+state.inactive_spheres)
         pygame.draw.circle(debug_surface, self.color, mul(sphere.center), SPHERE_SIZE*min(size)/2)
         ray = self.get_ray()

@@ -65,7 +65,7 @@ class Game:
         self.load_map(map1)
 
         self.seed = seed
-        print(self.seed)
+        # print(self.seed)
         self.random = None
         self.total_uniforms = 0
 
@@ -136,7 +136,7 @@ class Game:
             self.seed = random.randint(0, 1000000000)
         self.random = random.Random(self.seed)
         self.total_uniforms = 0
-        print('reset seed to', seed, 'and uniforms to 0')
+        # print('reset seed to', seed, 'and uniforms to 0')
 
         self.scores = [0] * self.num_players
         self.restart_round()
@@ -169,15 +169,19 @@ class Game:
     def check_wall_collision(self, sphere: Sphere):
         if sphere.intersects(self.topwall):
             sphere.velocity.y *= -1
+            sphere.center.y = sphere.radius
             return True
         if sphere.intersects(self.bottomwall):
             sphere.velocity.y *= -1
+            sphere.center.y = self.bottomwall.y - sphere.radius
             return True
         if sphere.intersects(self.leftwall):
             sphere.velocity.x *= -1
+            sphere.center.x = sphere.radius
             return True
         if sphere.intersects(self.rightwall):
             sphere.velocity.x *= -1
+            sphere.center.x = self.rightwall.x - sphere.radius
             return True
 
     def process_actions(self, actions):
@@ -360,7 +364,7 @@ class Game:
             self.timer += time_delta
 
             winner = [(index, p.color) for index, p in enumerate(self.player_spheres) if p.alive]
-            if len(winner) == 1 and self.num_players > 1:
+            if len(winner) < 2 and self.num_players > 1:
                 self.stage = GameStage.SHOWING_RESULTS
                 self.timer = 0
                 self.process_results(winner[0][0])

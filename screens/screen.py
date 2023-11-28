@@ -129,7 +129,7 @@ class GameScreen(Screen):
                     self.restart = False
                 if not self.is_paused or self.by_step:
                     self.game.process_actions(self.actions)
-                    self.game.update(time_delta)
+                    self.game.update(1/60)
                     self.actions = []
                     self.by_step = False
 
