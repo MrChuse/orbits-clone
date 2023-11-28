@@ -12,6 +12,8 @@ class BotState(Enum):
     ROTATING = auto()
     GOING_FOR_SPHERE = auto()
 
+# Do not forget to add your bot to __init__ file.
+# Import it there and add to the bots list
 class SmartBot(Bot):
     def __init__(self, center, velocity, radius, color):
         super().__init__(center, velocity, radius, color)
