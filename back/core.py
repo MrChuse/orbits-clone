@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, auto
 from typing import Union, Optional
 from collections import deque
 import math
@@ -306,3 +306,21 @@ class GameStateFront(GameState):
     how_to_win_text: str
     stage: GameStage
     someone_won: Optional[tuple[int, int, int]]
+
+@dataclass
+class Map:
+    rotators_coords: list[tuple[float, float, float]]
+
+class BotKeys(Enum):
+    IS_BOT_1 = auto()
+    IS_BOT_2 = auto()
+    IS_BOT_3 = auto()
+    IS_BOT_4 = auto()
+    IS_BOT_5 = auto()
+    IS_BOT_6 = auto()
+    IS_BOT_7 = auto()
+    IS_BOT_8 = auto()
+    IS_BOT_9 = auto()
+    IS_BOT_10 = auto()
+    IS_BOT_11 = auto()
+    IS_BOT_12 = auto()
