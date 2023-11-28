@@ -167,19 +167,19 @@ class Game:
                                    (255,255,255)))
 
     def check_wall_collision(self, sphere: Sphere):
-        if sphere.intersects(self.topwall):
+        if sphere.intersects_horizontal_line(self.topwall):
             sphere.velocity.y *= -1
             sphere.center.y = sphere.radius
             return True
-        if sphere.intersects(self.bottomwall):
+        if sphere.intersects_horizontal_line(self.bottomwall):
             sphere.velocity.y *= -1
             sphere.center.y = self.bottomwall.y - sphere.radius
             return True
-        if sphere.intersects(self.leftwall):
+        if sphere.intersects_vertical_line(self.leftwall):
             sphere.velocity.x *= -1
             sphere.center.x = sphere.radius
             return True
-        if sphere.intersects(self.rightwall):
+        if sphere.intersects_vertical_line(self.rightwall):
             sphere.velocity.x *= -1
             sphere.center.x = self.rightwall.x - sphere.radius
             return True
@@ -305,10 +305,8 @@ class Game:
         killed_sphere.trail = []
         killed_sphere.alive = False
 
-    def process_results(self, winner_index):
-        assert len(self.death_order) == self.num_players-1, len(self.death_order)
-        assert winner_index not in self.death_order
-        self.death_order.append(winner_index)
+    def process_results(self):
+        assert len(self.death_order) == self.num_players, len(self.death_order)
 
         self.old_scores = self.scores.copy()
         for score, player in enumerate(self.death_order):
@@ -367,7 +365,9 @@ class Game:
             if len(winner) < 2 and self.num_players > 1:
                 self.stage = GameStage.SHOWING_RESULTS
                 self.timer = 0
-                self.process_results(winner[0][0])
+                for w in winner:
+                    self.death_order.append(w[0])
+                self.process_results()
 
                 if self.score1 < 5 * (self.num_players-1):
                     self.how_to_win_text = f'Reach {5 * (self.num_players-1)} points'
@@ -376,7 +376,7 @@ class Game:
                     self.how_to_win_text = 'Get a 2-point lead'
                     self.next_stage = GameStage.RESTART_ROUND
                 else:
-                    self.someone_won = winner[0][1]
+                    self.someone_won = self.player_spheres[max(enumerate(self.scores), key=lambda x:x[1])[0]].color
                     self.next_stage = GameStage.END_SCREEN
         elif self.stage == GameStage.SHOWING_RESULTS:
             self.perform_actions()

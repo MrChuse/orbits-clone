@@ -102,14 +102,13 @@ class Sphere:
     def get_ray(self):
         return Ray(self.center, self.velocity)
 
-    def intersects(self, other: Union['Sphere', VerticalLine, HorizontalLine]):
-        if isinstance(other, Sphere):
-            return self.center.distance_squared_to(other.center) <= (self.radius + other.radius) ** 2
-        if isinstance(other, VerticalLine):
+    def intersects(self, other: 'Sphere'):
+        return self.center.distance_squared_to(other.center) <= (self.radius + other.radius) ** 2
+    def intersects_vertical_line(self, other: VerticalLine):
             return other.x - self.radius < self.center.x < other.x + self.radius
-        if isinstance(other, HorizontalLine):
-            return other.y - self.radius < self.center.y < other.y + self.radius
-        raise TypeError('Can check collisions only with Sphere, VerticalLine and HorizontalLine for now')
+    def intersects_horizontal_line(self, other: HorizontalLine):
+        return other.y - self.radius < self.center.y < other.y + self.radius
+
 
     def will_hit_sphere(self, other: 'Sphere'):
         # Calculate the time until the spheres will intersect
@@ -130,12 +129,8 @@ class Sphere:
 
         return t  # The spheres will eventually collide
 
-        # return time_to_collision if time_to_collision >= 0 else None
-
     def check_center_inside(self, other: 'Sphere'):
-        if isinstance(other, Sphere):
-            return self.center.distance_squared_to(other.center) <= other.radius ** 2
-        raise TypeError('Can check center inside of only Sphere for now')
+        return self.center.distance_squared_to(other.center) <= other.radius ** 2
 
     def collide_with(self, other: 'Sphere'):
             # pushout
