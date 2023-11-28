@@ -1,7 +1,4 @@
 import socket
-import socketserver
-from socketserver import BaseRequestHandler, ThreadingTCPServer
-from typing import Any, Callable
 import threading
 import random
 import pickle
@@ -10,47 +7,7 @@ import pygame
 
 from .screen import PickColorScreen, GameScreen
 from back import Team
-from .sock_helpers import send_command, recv_command, Command
-
-ThreadingTCPServer.daemon_threads = True
-class HostThreadingTCPServer(ThreadingTCPServer):
-    def __init__(self, server_address: Any, RequestHandlerClass: Callable[[Any, Any, Any], BaseRequestHandler], on_connect, on_disconnect, bind_and_activate: bool = True) -> None:
-        super().__init__(server_address, RequestHandlerClass, bind_and_activate)
-        self.clients: list = []
-        self.client_sockets: list[socket.socket] = []
-        self.client_captures: list[tuple[int, int, str]] = []
-        self.on_connect = on_connect
-        self.on_disconnect = on_disconnect
-        self.seed = None
-
-class HostThreadedTCPRequestHandler(BaseRequestHandler):
-    def handle(self):
-        addr = self.client_address
-        print('handling with a server', addr)
-        if addr not in self.server.clients:
-            self.server.clients.append(addr)
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.server.client_sockets.append(sock)
-            try:
-                sock.connect((addr[0], 9002))
-            except ConnectionRefusedError as e:
-                print(addr, e)
-                return
-            self.server.on_connect(sock)
-
-        client_number = self.server.clients.index(addr)
-        while True:
-            try:
-                command, data = recv_command(self.request)
-                if command == '':
-                    break
-                if command != Command.KEY:
-                    continue
-                self.server.client_captures.append((client_number, data, f'client{client_number} {pygame.key.name(data)}'))
-            except ConnectionAbortedError as e:
-                self.server.on_disconnect(self.request, client_number)
-                break
-
+from networking_stuff import send_command, Command, HostThreadingTCPServer, HostThreadedTCPRequestHandler
 
 class HostPickColorScreen(PickColorScreen):
     def __init__(self, surface: pygame.Surface):
@@ -68,14 +25,15 @@ class HostPickColorScreen(PickColorScreen):
     def on_connect(self, sock: socket.socket):
         send_command(sock, Command.PLA, len(self.key_map))
         l = list(Team)
-        for key, (team, name) in self.key_map.items():
+        print(self.key_map)
+        for key, (team, name, PlayerClass) in self.key_map.items():
             send_command(sock, Command.KEY, key)
             send_command(sock, Command.TEA, l.index(team))
 
     def on_disconnect(self, sock: socket.socket, client_number):
         self.server.clients.pop(client_number)
         to_delete = []
-        for key, (team, name) in self.key_map.items():
+        for key, (team, name, PlayerClass) in self.key_map.items():
             if name.startswith(f'client{client_number}'):
                 to_delete.append(key)
         for key in to_delete:
@@ -84,11 +42,6 @@ class HostPickColorScreen(PickColorScreen):
     def process_events(self, event):
         if event.type == pygame.KEYDOWN:
             self.captured_keys.append((event.key, pygame.key.name(event.key)))
-
-    def send_to_all_clients(self, commands: list):
-        for sock in self.server.client_sockets:
-            for command, value in commands:
-                send_command(sock, command, value)
 
     def update(self, time_delta):
         commands = []
@@ -104,7 +57,7 @@ class HostPickColorScreen(PickColorScreen):
                     commands.append((Command.SEE, self.server.seed))
             else:
                 commands.append((Command.KEY, key))
-        self.send_to_all_clients(commands)
+        self.server.send_commands_to_all_clients(commands)
 
         # clients' presses
         for client_id, key, name in self.server.client_captures:
@@ -127,14 +80,6 @@ class HostGameScreen(GameScreen):
         self.server.shutdown()
         for sock in self.server.client_sockets:
             sock.close()
-
-    def send_to_all_clients(self, commands: list):
-        for sock in self.server.client_sockets:
-            for command, value in commands:
-                try:
-                    send_command(sock, command, value)
-                except ConnectionResetError:
-                    pass
 
     def update(self, time_delta):
         commands = []
@@ -172,9 +117,7 @@ class HostGameScreen(GameScreen):
         #     state_commands.extend(commands_for_sphere(player))
         #     for
 
-
-
-        self.send_to_all_clients(commands)
+        self.server.send_commands_to_all_clients(commands)
         # clients' presses
         for client_id, key, name in self.server.client_captures:
             for id, sock in enumerate(self.server.client_sockets):
