@@ -73,6 +73,9 @@ class HostGameScreen(GameScreen):
             print('server.seed is None :(')
         super().__init__(surface, colors, server.seed)
         self.server = server
+        self.send_state_every_seconds = 1
+        self.send_state_timer = self.send_state_every_seconds
+        self.timer = 0
 
     def clean_up(self):
         print('shutdown')
@@ -95,11 +98,14 @@ class HostGameScreen(GameScreen):
                 commands.append((Command.KEY, key))
 
         # collect state
-        state = self.game.get_state()
+        if self.timer >= self.send_state_timer:
+            state = self.game.get_state()
 
-        state_bytes = pickle.dumps(state)
-        commands.append((Command.STL, len(state_bytes)))
-        commands.append((Command.STT, state_bytes))
+            state_bytes = pickle.dumps(state)
+            commands.append((Command.STL, len(state_bytes)))
+            commands.append((Command.STT, state_bytes))
+            self.send_state_timer += self.send_state_every_seconds
+        self.timer += time_delta
 
         # think about json-serialization
         # {'rotators': self.rotators,
