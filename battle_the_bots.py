@@ -46,6 +46,7 @@ def main():
     # surface = set_up_gui_games()
     start_time = time.time()
     wins = []
+    cumulative_times = []
     for game_number, seed in enumerate(seeds):
         # scores = play_a_gui_game(surface)
         scores = play_a_console_game(game_number, seed)
@@ -53,8 +54,19 @@ def main():
         best_player = PLAYERS[best[0]].__name__ + f' {best[0]}'
         score = best[1]
         wins.append(best_player)
-        print(f'Game {game_number}: winner is {best_player} with score {score}. {time.time() - start_time} seconds from start')
+        time_passed = time.time() - start_time
+        cumulative_times.append(time_passed)
+        print(f'Game {game_number}: winner is {best_player} with score {score}. {time_passed} seconds from start')
     print(Counter(wins))
+
+    game_times = []
+    for i,j in zip(cumulative_times[:-1], cumulative_times[1:]):
+        game_times.append(j-i)
+    mean = sum(game_times) / len(game_times)
+    l_m_sqrd = [(l - mean) ** 2 for l in game_times]
+    import math
+    std = math.sqrt(sum(l_m_sqrd) / len(game_times))
+    print(f'{mean=}, {std=}')
     print(time.time() - start_time, 'seconds passed.')
 
 if __name__ == '__main__':
