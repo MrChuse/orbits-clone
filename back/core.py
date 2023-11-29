@@ -22,6 +22,8 @@ ROTATOR_SIZE = REFERENCE_ROTATOR_SIZE / REFERENCE_SCREEN_SIZE / 2
 ROTATOR_INNER_SIZE = REFERENCE_ROTATOR_INNER_SIZE / REFERENCE_SCREEN_SIZE / 2
 PLAYER_SIZE = REFERENCE_PLAYER_SIZE / REFERENCE_SCREEN_SIZE / 2
 SPHERE_SIZE = REFERENCE_SPHERE_SIZE / REFERENCE_SCREEN_SIZE / 2
+BURST_SIZE = REFERENCE_BURST_OUTER_SIZE / REFERENCE_SCREEN_SIZE / 2
+BURST_INNER_RATIO = REFERENCE_BURST_INNER_SIZE / REFERENCE_BURST_OUTER_SIZE
 
 DEFAULT_SPEED = 2 / 400
 
@@ -155,6 +157,34 @@ class RotatorSphere(Sphere):
         super().__init__(center, Vector2(0,0), radius, (51, 51, 51))
         self.middle_sphere = Sphere(center, Vector2(0, 0), radius/20, (100, 100, 100))
 
+class Burst(Sphere):
+    def __init__(self, center, radius):
+        super().__init__(center, Vector2(0,0), radius, (255, 255, 255))
+        self.middle_sphere = Sphere(center, Vector2(0, 0), radius * BURST_INNER_RATIO, (100, 100, 100))
+        self.grow_rate = radius / 5
+        self.alive = True
+        self.active = False
+        self.active_player: Optional[PlayerSphere] = None
+        self.frames_from_burst = 0
+        self.frames_from_spawn = 0
+
+    def activate(self, active_player):
+        self.active = True
+        self.active_player = active_player
+
+    def update(self):
+        if self.active:
+            if self.frames_from_burst < 40:
+                self.radius += self.grow_rate
+                self.middle_sphere.radius += self.grow_rate
+            else:
+                self.alive = False
+            self.frames_from_burst += 1
+        elif self.frames_from_spawn > 1200:
+            self.alive = False
+        self.frames_from_spawn += 1
+
+
 
 
 class PlayerSphere(Sphere):
@@ -188,8 +218,8 @@ class PlayerSphere(Sphere):
         self.trail.append(sphere)
         sphere.color = self.color
 
-    def remove_sphere(self):
-        sphere = self.trail.pop(0)
+    def remove_sphere(self, index=0):
+        sphere = self.trail.pop(index)
         self.path = deque(self.path, maxlen=(len(self.trail)+1) * self.path_size_per_trail_sphere) # type: ignore
         return sphere
 
@@ -287,12 +317,12 @@ class GameState:
     active_spheres: list[Sphere]
     inactive_spheres: list[Sphere]
     attacking_spheres: list[list[Sphere]]
+    bursts: list[Burst]
     rotators: list[RotatorSphere]
     timer: float
     death_order: list[int]
-    # random_: Optional[random.Random] = None
     def update_to_front(self, player_scores: list[PlayerScore], how_to_win_text: str, stage: GameStage, someone_won: Optional[tuple[int, int, int]]):
-        return GameStateFront(self.player_spheres, self.active_spheres, self.inactive_spheres, self.attacking_spheres, self.rotators, self.timer, self.death_order,# self.random_,
+        return GameStateFront(self.player_spheres, self.active_spheres, self.inactive_spheres, self.attacking_spheres, self.bursts, self.rotators, self.timer, self.death_order,# self.random_,
                               player_scores, how_to_win_text, stage, someone_won)
 
 @dataclass

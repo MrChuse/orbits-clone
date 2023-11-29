@@ -5,7 +5,7 @@ import pygame
 import pygame.freetype
 from pygame import Vector2
 
-from back import Sphere, RotatorSphere, PlayerSphere, GameStage, color_names, Team, GameStateFront
+from back import Sphere, RotatorSphere, Burst, PlayerSphere, GameStage, color_names, Team, GameStateFront
 
 def draw_sphere(surface: pygame.Surface, sphere: Sphere, game_size: tuple[int, int], force_color=None):
     if force_color is None:
@@ -17,6 +17,10 @@ def draw_sphere(surface: pygame.Surface, sphere: Sphere, game_size: tuple[int, i
 def draw_rotator_sphere(surface, rotator: RotatorSphere, game_size):
     draw_sphere(surface, rotator, game_size)
     draw_sphere(surface, rotator.middle_sphere, game_size)
+
+def draw_burst(surface, burst: Burst, game_size):
+    draw_sphere(surface, burst, game_size)
+    draw_sphere(surface, burst.middle_sphere, game_size)
 
 def draw_player(surface, sphere: PlayerSphere, game_size):
     if not sphere.alive: return
@@ -49,6 +53,8 @@ def draw_game(surface, state: GameStateFront, game_size):
         draw_sphere(surface, i, game_size)
     for i in state.inactive_spheres:
         draw_sphere(surface, i, game_size)
+    for i in state.bursts:
+        draw_burst(surface, i, game_size)
     for players_spheres in state.attacking_spheres:
         for i in players_spheres:
             draw_sphere(surface, i, game_size)

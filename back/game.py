@@ -12,6 +12,7 @@ from .core import (
     PLAYER_SIZE,
     ROTATOR_SIZE,
     DEFAULT_SPEED,
+    BURST_SIZE,
 
     Team,
     GameStage,
@@ -25,6 +26,7 @@ from .core import (
     Sphere,
     PlayerSphere,
     RotatorSphere,
+    Burst,
 )
 from bots import Bot
 
@@ -74,6 +76,7 @@ class Game:
         self.active_spheres: list[Sphere] = []
         self.inactive_spheres: list[Sphere] = []
         self.attacking_spheres: list[list[Sphere]] = None
+        self.bursts = []
         self.someone_won = False
 
         self.stage = GameStage.ROTATING_AROUND_CENTER
@@ -83,6 +86,7 @@ class Game:
 
         # GAMING
         self.death_order: list[int] = []
+        self.time_to_spawn_burst: float = 0
 
         # SHOWING_RESULTS
         self.score1 = 0
@@ -123,6 +127,8 @@ class Game:
         self.active_spheres = []
         for i in range(10):
             self.add_random_sphere()
+        self.time_to_spawn_burst = self.random_uniform(5, 15, 'time_until_burst')
+        self.bursts = []
 
         self.someone_won = False
 
@@ -236,6 +242,24 @@ class Game:
         for i in self.inactive_spheres:
             self.check_wall_collision(i)
             i.update()
+        for i in self.bursts:
+            if not i.alive: self.bursts.remove(i)
+            i.update()
+            if i.active:
+                for sphere in self.active_spheres:
+                    if i.intersects(sphere):
+                        i.active_player.add_sphere_to_queue(sphere)
+                        self.active_spheres.remove(sphere)
+                for sphere in self.inactive_spheres:
+                    if i.intersects(sphere):
+                        i.active_player.add_sphere_to_queue(sphere)
+                        self.inactive_spheres.remove(sphere)
+                for p in self.player_spheres:
+                    if p is not i.active_player:
+                        for index, sphere in enumerate(p.trail):
+                            if i.intersects(sphere):
+                                i.active_player.add_sphere_to_queue(sphere)
+                                p.remove_sphere(index)
 
     def update_positions_to_rotate_around_center(self):
         ROTATION_SPEED = 500
@@ -292,6 +316,15 @@ class Game:
                     if not sphere.is_dodging():
                         sphere.add_sphere_to_queue(sphere_to_check)
                         self.inactive_spheres.remove(sphere_to_check)
+
+            for burst in self.bursts:
+                if sphere.intersects(burst) and not burst.active:
+                    burst.activate(sphere)
+
+    def spawn_burst_if_needed(self):
+        if self.timer > self.time_to_spawn_burst:
+            self.bursts.append(Burst(Vector2(self.get_random_spawn_position(BURST_SIZE)), BURST_SIZE))
+            self.time_to_spawn_burst += self.random_uniform(5, 15, 'time_until_burst')
 
     def process_player_death(self, killed_index: int, killed_sphere: PlayerSphere, *, killer_index: Optional[int] = None, killer_sphere: Optional[PlayerSphere] = None):
         if killer_index is None and killer_sphere is None:
@@ -353,8 +386,9 @@ class Game:
 
             self.update_positions_and_wall_collisions()
 
-            # other collisions
             self.process_collisions()
+
+            self.spawn_burst_if_needed()
 
             for i in self.player_spheres:
                 i.velocity.scale_to_length(DEFAULT_SPEED)
@@ -415,6 +449,7 @@ class Game:
                          self.active_spheres,
                          self.inactive_spheres,
                          self.attacking_spheres,
+                         self.bursts,
                          self.rotators,
                          self.timer,
                          self.death_order,)
@@ -430,6 +465,7 @@ class Game:
         self.active_spheres = state.active_spheres
         self.inactive_spheres = state.inactive_spheres
         self.attacking_spheres = state.attacking_spheres
+        self.bursts = state.bursts
         self.timer = state.timer
         self.death_order = state.death_order
         # self.random = state.random_

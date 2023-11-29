@@ -19,5 +19,6 @@ from .core import (
     Sphere,
     PlayerSphere,
     RotatorSphere,
+    Burst,
 )
 from .game import Game
