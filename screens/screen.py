@@ -169,7 +169,7 @@ class PickColorScreen(Screen):
             if event.ui_element == self.add_bot_button:
                 self.add_bot(self.bots[self.pick_bot.selected_option])
             elif event.ui_element == self.remove_bot_button:
-                self.remove_bot(self.bots[self.pick_bot.selected_option])
+                self.remove_bot()
 
     def find_available_team(self, key):
         if key not in self.key_team_iter_map:
