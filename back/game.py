@@ -116,7 +116,7 @@ class Game:
         self.player_spheres = []
         for key, (team, name, PlayerClass) in self.colors.items():
             pos = Vector2(0, 0)
-            vel = Vector2(1, 0)
+            vel = Vector2(DEFAULT_SPEED, 0)
             ps = PlayerClass(pos, vel, PLAYER_SIZE, team.value)
             if isinstance(ps, Bot):
                 self.bot_player_spheres.append(ps)
