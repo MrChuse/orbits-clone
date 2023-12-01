@@ -8,3 +8,15 @@ from .cling_bot import ClingBot
 from .do_nothing_bot import DoNothingBot
 
 bots = [SmartBot, DodgingCollectSphereBot, StateMachineBot, CollectSphereBot, WaitClingBot, ClingBot, DoNothingBot]
+
+
+# bots check
+from pygame import Vector2
+for bot in bots:
+    try:
+        # each bot must override the get_action function
+        # and have its __init__ method have 4 args: center, velocity, radius, color
+        b = bot(Vector2(0, 0), Vector2(1, 0), 10, (255, 255, 255))
+    except Exception as e:
+        print(f'Bot {bot.__name__} has a problem: {e!r}')
+        exit()
