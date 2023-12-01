@@ -368,8 +368,6 @@ class Game:
         for bot, key in zip(self.bot_player_spheres, BotKeys):
             action = bot.get_action(state, time_delta)
             if action:
-                # print(f'{Team(bot.color).name} action at {self.timer:.1f}')
-                # print(f'{self.bot_player_spheres}')
                 bots_actions.append(key)
         self.process_actions(bots_actions)
 
