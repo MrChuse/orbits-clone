@@ -13,9 +13,7 @@ class BotState(Enum):
     ROTATING = auto()
     GOING_FOR_SPHERE = auto()
 
-# Do not forget to add your bot to __init__ file.
-# Import it there and add to the bots list
-class SmartBot(Bot):
+class DodgingCollectSphereBot(Bot):
     def __init__(self, center, velocity, radius, color):
         super().__init__(center, velocity, radius, color)
         self.last_state = None
@@ -48,16 +46,6 @@ class SmartBot(Bot):
             if time is not None and time < 10:
                 # print(Team(self.color).name, 'jumping to dodge trail', time)
                 return True
-
-        # try to attack
-        if not self.is_in_rotator(state.rotators):
-            if len(self.trail) > 0:
-                attacking_sphere = Sphere(self.trail[0].center, self.velocity * 2, SPHERE_SIZE)
-                for player in state.player_spheres:
-                    if player is self: continue
-                    if attacking_sphere.will_hit_sphere(player) is not None:
-                        # print(Team(self.color).name, 'jumping to attack')
-                        return True
 
         if self.botstate == BotState.WAITING:
             if self.timer < self.wait_time:

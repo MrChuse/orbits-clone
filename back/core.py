@@ -229,6 +229,12 @@ class PlayerSphere(Sphere):
         except IndexError:
             return self.path[-1]
 
+    def is_in_rotator(self, rotators):
+        for rotator in rotators:
+            if self.check_center_inside(rotator):
+                return True
+        return False
+
     def update(self):
         if not self.alive: return
         if self.rotating_around is None:
