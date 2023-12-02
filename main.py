@@ -4,7 +4,9 @@ import pygame
 
 from screens import (GameScreen, PickColorScreen, LocalOnlinePickerScreen,
                     HostPickColorScreen, ClientPickColorScreen,
-                    HostGameScreen, ClientGameScreen)
+                    HostPickColorScreen2, ClientPickColorScreen2,
+                    HostGameScreen, ClientGameScreen,
+                    HostGameScreen2, ClientGameScreen2)
 
 # from config import load_settings
 # from forestry import NotEnoughResourcesError
@@ -54,21 +56,20 @@ def main():
     elif is_local.startswith('online'):
         parts = is_local.split()
         if len(parts) == 2 and parts[1] == 'host':
-            hpcs = HostPickColorScreen(window_surface)
+            hpcs = HostPickColorScreen2(window_surface)
             result = hpcs.main()
             if hpcs.force_quit:
                 return
             colors, server = result
-            hgs = HostGameScreen(window_surface, colors, server)
+            hgs = HostGameScreen2(window_surface, colors, server)
             hgs.main()
 
         elif len(parts) == 3 and parts[1] == 'client':
-            cpcs = ClientPickColorScreen(window_surface, parts[2])
+            cpcs = ClientPickColorScreen2(window_surface, parts[2])
             result = cpcs.main()
             if cpcs.force_quit:
                 return
-            colors, sock, server = result
-            cgs = ClientGameScreen(window_surface, colors, sock, server)
+            cgs = ClientGameScreen2(window_surface, colors, sock, seed)
             cgs.main()
 
 
