@@ -144,12 +144,12 @@ class HostGameScreen2(GameScreen):
             commands.append((Command.KEY, key))
 
         # collect state
-        if self.timer >= self.send_state_timer:
-            state = self.game.get_state()
+        # if self.timer >= self.send_state_timer:
+        state = self.game.get_state()
 
-            state_bytes = pickle.dumps(state)
-            commands.append((Command.STT, state_bytes))
-            self.send_state_timer += self.send_state_every_seconds
+        state_bytes = pickle.dumps(state)
+        commands.append((Command.STT, state_bytes))
+        self.send_state_timer += self.send_state_every_seconds
         self.timer += time_delta
 
         # think about json-serialization
