@@ -66,7 +66,7 @@ class Game:
         self.rotators = []
         self.load_map(map1)
 
-        self.seed = seed
+        self.seed = None
         # logging.info(self.seed)
         self.random = None
         self.total_uniforms = 0
@@ -136,12 +136,28 @@ class Game:
         self.timer = 0
         self.death_order: list[int] = []
 
+    def set_seed(self, seed=None, total_uniforms=0):
+        if self.seed is None or self.seed != seed:
+            self.seed = seed
+            if self.seed is None:
+                self.seed = random.randint(0, 1000000000)
+            self.random = random.Random(self.seed)
+            for _ in range(total_uniforms):
+                self.random.uniform(0, 2)
+            self.total_uniforms = total_uniforms
+        else:
+            if self.total_uniforms <= total_uniforms:
+                for _ in range(total_uniforms - self.total_uniforms):
+                    self.random.uniform(0, 2)
+                self.total_uniforms = total_uniforms
+            else:
+                self.random = random.Random(self.seed)
+                for _ in range(total_uniforms):
+                    self.random.uniform(0, 2)
+                self.total_uniforms = total_uniforms
+
     def restart_game(self, seed=None):
-        self.seed = seed
-        if self.seed is None:
-            self.seed = random.randint(0, 1000000000)
-        self.random = random.Random(self.seed)
-        self.total_uniforms = 0
+        self.set_seed(seed)
         # logging.info('reset seed to', seed, 'and uniforms to 0')
 
         self.scores = [0] * self.num_players
@@ -461,7 +477,9 @@ class Game:
                          self.bursts,
                          self.rotators,
                          self.timer,
-                         self.death_order,)
+                         self.death_order,
+                         self.seed,
+                         self.total_uniforms)
                         #  self.random)
 
     def get_front_state(self):
@@ -477,6 +495,7 @@ class Game:
         self.bursts = state.bursts
         self.timer = state.timer
         self.death_order = state.death_order
+        self.set_seed(state.seed, state.total_uniforms)
         # self.random = state.random_
         # self.stage = state.stage
 

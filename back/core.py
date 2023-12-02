@@ -324,8 +324,20 @@ class GameState:
     rotators: list[RotatorSphere]
     timer: float
     death_order: list[int]
+    seed: int
+    total_uniforms: int
     def update_to_front(self, player_scores: list[PlayerScore], how_to_win_text: str, stage: GameStage, someone_won: Optional[tuple[int, int, int]]):
-        return GameStateFront(self.player_spheres, self.active_spheres, self.inactive_spheres, self.attacking_spheres, self.bursts, self.rotators, self.timer, self.death_order,# self.random_,
+        return GameStateFront(self.player_spheres,
+                              self.active_spheres,
+                              self.inactive_spheres,
+                              self.attacking_spheres,
+                              self.bursts,
+                              self.rotators,
+                              self.timer,
+                              self.death_order,
+                              self.seed,
+                              self.total_uniforms,
+                              # self.random_,
                               player_scores, how_to_win_text, stage, someone_won)
 
 @dataclass
