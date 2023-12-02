@@ -27,6 +27,7 @@ class Screen:
         self.return_value = None
         self.force_quit = False
         self.manager = pygame_gui.UIManager(self.window_size)
+        self.framerate = 60
 
     def clean_up(self):
         return
@@ -44,7 +45,7 @@ class Screen:
         clock = pygame.time.Clock()
         self.is_running = True
         while self.is_running:
-            time_delta = clock.tick(60)/1000.0
+            time_delta = clock.tick(self.framerate)/1000.0
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -113,13 +114,17 @@ class GameScreen(Screen):
                 self.actions.append(event.key)
             elif event.key == pygame.K_F1:
                 self.draw_debug = not self.draw_debug
-            if event.key == pygame.K_F2:
+            elif event.key == pygame.K_F2:
                 self.is_paused = not self.is_paused
-            if event.key == pygame.K_F3:
+            elif event.key == pygame.K_F3:
                 self.by_step = True
                 self.is_paused = True
-            if event.key == pygame.K_F5:
+            elif event.key == pygame.K_F5:
                 self.restart = True
+            elif event.key == pygame.K_F6:
+                self.framerate *= 1.2
+            elif event.key == pygame.K_F7:
+                self.framerate /= 1.2
 
     def update(self, time_delta):
             self.game_surface.fill(pygame.Color('#000000'))
