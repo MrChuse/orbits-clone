@@ -126,7 +126,7 @@ class Game:
         self.inactive_spheres = []
         self.active_spheres = []
         for i in range(10):
-            self.add_random_sphere()
+            self.spawn_random_sphere()
         self.time_to_spawn_burst = self.random_uniform(5, 15, 'time_until_burst')
         self.bursts = []
 
@@ -166,7 +166,7 @@ class Game:
         return (self.random_uniform(radius, self.size[0]-radius, 'random pos x'),
                 self.random_uniform(radius, self.size[1]-radius, 'random pos y'))
 
-    def add_random_sphere(self):
+    def spawn_random_sphere(self):
         self.active_spheres.append(Sphere(Vector2(self.get_random_spawn_position(SPHERE_SIZE)),
                                    Vector2(0, 0),
                                    SPHERE_SIZE,
@@ -250,6 +250,7 @@ class Game:
                     if i.intersects(sphere):
                         i.active_player.add_sphere_to_queue(sphere)
                         self.active_spheres.remove(sphere)
+                        self.spawn_random_sphere()
                 for sphere in self.inactive_spheres:
                     if i.intersects(sphere):
                         i.active_player.add_sphere_to_queue(sphere)
@@ -260,6 +261,16 @@ class Game:
                             if i.intersects(sphere):
                                 i.active_player.add_sphere_to_queue(sphere)
                                 p.remove_sphere(index)
+                for l in self.attacking_spheres:
+                    for sphere in l:
+                        if i.intersects(sphere):
+                            i.active_player.add_sphere_to_queue(sphere)
+                            l.remove(sphere)
+                for b in self.bursts:
+                    if i == b or b.active: continue
+                    if i.intersects(b):
+                        b.activate(i.active_player)
+
 
     def update_positions_to_rotate_around_center(self):
         ROTATION_SPEED = 500
@@ -310,7 +321,7 @@ class Game:
                     if not sphere.is_dodging():
                         sphere.add_sphere_to_queue(sphere_to_check)
                         self.active_spheres.remove(sphere_to_check)
-                        self.add_random_sphere()
+                        self.spawn_random_sphere()
             for sphere_to_check in self.inactive_spheres:
                 if sphere.intersects(sphere_to_check):
                     if not sphere.is_dodging():
