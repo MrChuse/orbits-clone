@@ -12,15 +12,6 @@ from screens import (GameScreen, PickColorScreen, LocalOnlinePickerScreen,
                     HostGameScreen, ClientGameScreen,
                     HostGameScreen2, ClientGameScreen2)
 
-# from config import load_settings
-# from forestry import NotEnoughResourcesError
-# from ui.custom_events import APPLY_VOLUME_CHANGE
-# keep TutorialStage here because needed for backwards compatibility with pickle.load
-# from ui.game_components import GUI, TutorialStage
-
-# trash slot for inventory
-# controls for apiary and inventory
-
 def test_ray_intersect():
     from screens.screen import TestRayIntersectSphere
 
