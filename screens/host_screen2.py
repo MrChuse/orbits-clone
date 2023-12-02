@@ -38,7 +38,7 @@ class HostMultiplexingThreadingTCPRequestHandler(BaseRequestHandler):
             raise TypeError('Can only handle requests of HostMultiplexingThreadingTCPServer')
 
         addr = self.client_address
-        logging.info('Client connected from', addr)
+        logging.info(f'Client connected from {addr}')
 
         self.server.commands_to_send[addr] = []
         self.server.client_captures[addr] = []
@@ -148,7 +148,6 @@ class HostGameScreen2(GameScreen):
             state = self.game.get_state()
 
             state_bytes = pickle.dumps(state)
-            commands.append((Command.STL, len(state_bytes)))
             commands.append((Command.STT, state_bytes))
             self.send_state_timer += self.send_state_every_seconds
         self.timer += time_delta

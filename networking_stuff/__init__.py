@@ -41,15 +41,13 @@ class Command(Enum):
 #     ]
 
 def send_command(sock: socket.socket, command: Command, value):
-    send_text(sock, command.value)
-    # if command in (Command.PSX, Command.PSY, Command.RAD):
-    #     send_float(sock, value)
-    # else:
-    #     send_int(sock, value)
     if command == Command.STT:
+        send_command(sock, Command.STL, len(value))
+        send_text(sock, command.value)
         sock.sendall(value)
         # logging.info(f'send {command.value} {len(value)} bytes')
     else:
+        send_text(sock, command.value)
         send_int(sock, value)
         # if command not in (Command.REC, Command.COM):
         # logging.info(f'send {command.value} {value}')
@@ -62,7 +60,10 @@ def recv_command(sock: socket.socket, *args):
     except Exception as e:
         logging.info(e)
     if isinstance(command, Command):
-        if command == Command.STT:
+        if command == Command.STL:
+            value = recv_int(sock)
+            return recv_command(sock, value)
+        elif command == Command.STT:
             received_length = 0
             need_to_receive = args[0]
             value = b''
