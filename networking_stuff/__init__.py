@@ -1,6 +1,7 @@
 import socket
 import struct
 from enum import Enum
+import logging
 
 from back import Team, Sphere
 
@@ -14,6 +15,8 @@ class Command(Enum):
     STL = 'stl' # STate Length
     STT = 'stt' # STaTe
     RES = 'res' # restart
+    REC = 'rec' # RECeive
+    COM = 'com' # COMmands number
     # ROT = 'rot' # ROTators
     # SPH = 'sph' # SPHere
     # PSX = 'psx' # PoSitionX
@@ -45,17 +48,19 @@ def send_command(sock: socket.socket, command: Command, value):
     #     send_int(sock, value)
     if command == Command.STT:
         sock.sendall(value)
-        # print('send', command.value, value[:10])
+        # logging.info('send', command.value, len(value), 'bytes')
     else:
         send_int(sock, value)
-        # print('send', command.value, value)
+        # if command not in (Command.REC, Command.COM):
+        # logging.info('send', command.value, value)
 
 def recv_command(sock: socket.socket, *args):
+    # logging.info('trying to recv command')
     command = recv_text(sock, 3)
     try:
         command = Command(command)
     except Exception as e:
-        print(e)
+        logging.info(e)
     if isinstance(command, Command):
         if command == Command.STT:
             received_length = 0
@@ -63,28 +68,29 @@ def recv_command(sock: socket.socket, *args):
             value = b''
             while received_length < args[0]: # may not receive in one go
                 received = sock.recv(need_to_receive)
-                # print('recv', command.value, len(received))
+                # logging.info('recv', command.value, len(received))
                 value += received
                 received_length += len(received)
                 need_to_receive -= len(received)
         else:
             value = recv_int(sock)
-            # print('recv', command.value, value)
+            # if command not in (Command.COM, Command.REC):
+            # logging.info('recv', command.value, value)
     else:
         value = recv_int(sock)
-        # print('recv', command, value)
+        # logging.info('recv', command, value)
 
     return command, value
 
 
 def send_int(sock: socket.socket, message: int):
     sock.sendall(message.to_bytes(4, 'little'))
-    # print('send int', message)
+    # logging.info('send int', message)
 
 def recv_int(sock: socket.socket):
     rcv = sock.recv(4)
     i = int.from_bytes(rcv, 'little')
-    # print('recv int', rcv, i)
+    # logging.info('recv int', rcv, i)
     return i
 
 def send_float(sock: socket.socket, message: float):
@@ -96,11 +102,11 @@ def recv_float(sock: socket.socket, message: float):
 
 def send_text(sock: socket.socket, message):
     sock.sendall(bytes(message, 'ascii'))
-    # print('send str', message)
+    # logging.info('send str', message)
 
 def recv_text(sock: socket.socket, length):
     data = str(sock.recv(length), 'ascii')
-    # print('recv str', data)
+    # logging.info('recv str', data)
     return data
 
 def recv_player(sock: socket.socket):
@@ -109,7 +115,7 @@ def recv_player(sock: socket.socket):
     command, team = recv_command(sock)
     assert command == Command.TEA, f'command {command} was not TEA'
     team = list(Team)[team]
-    # print('recv plr', key, team)
+    # logging.info('recv plr', key, team)
     return key, team
 
 # def recv_sphere(sock: socket.socket):

@@ -1,4 +1,6 @@
 from enum import Enum, auto
+import logging
+
 import pygame
 import pygame.freetype
 pygame.freetype.init()
@@ -39,27 +41,27 @@ class DodgingCollectSphereBot(Bot):
             for sphere in attacking_spheres:
                 time = sphere.will_hit_sphere(self)
                 if time is not None and time < 10:
-                    # print(Team(self.color).name, 'jumping to dodge attack', time)
+                    # logging.info(Team(self.color).name, 'jumping to dodge attack', time)
                     return True
         for sphere in spheres_to_check:
             time = self.will_hit_sphere(sphere)
             if time is not None and time < 10:
-                # print(Team(self.color).name, 'jumping to dodge trail', time)
+                # logging.info(Team(self.color).name, 'jumping to dodge trail', time)
                 return True
 
         if self.botstate == BotState.WAITING:
             if self.timer < self.wait_time:
-                # print('waiting for 5 secs:', state.timer)
+                # logging.info('waiting for 5 secs:', state.timer)
                 self.timer += time_delta
                 return False # do not do anything for 5 seconds
             else:
-                # print(Team(self.color).name, 'waiting ended')
+                # logging.info(Team(self.color).name, 'waiting ended')
                 self.botstate = BotState.GOING_FOR_ROTATOR
         elif self.botstate == BotState.GOING_FOR_ROTATOR:
             if self.rotating_around:
                 self.botstate = BotState.GOING_FOR_SPHERE
                 self.timer = 0
-                # print(Team(self.color).name, 'going for rotator success')
+                # logging.info(Team(self.color).name, 'going for rotator success')
                 return False
             if self.is_in_rotator(state.rotators) and self.rotating_around is None:
                 return True
@@ -67,13 +69,13 @@ class DodgingCollectSphereBot(Bot):
             if self.timer > 10:
                 self.botstate = BotState.GOING_FOR_ROTATOR
                 self.timer = 0
-                # print(Team(self.color).name, 'going for sphere for too long')
+                # logging.info(Team(self.color).name, 'going for sphere for too long')
                 return True # rotating for too long
             self.timer += time_delta
             if len(self.trail) > self.prev_spheres:
                 self.botstate = BotState.GOING_FOR_ROTATOR
                 self.prev_spheres = len(self.trail)
-                # print(Team(self.color).name, 'caught a sphere probably')
+                # logging.info(Team(self.color).name, 'caught a sphere probably')
                 return False
             # going for a sphere
             sphere = self.calc_closest_sphere(state.active_spheres+state.inactive_spheres)
@@ -81,10 +83,10 @@ class DodgingCollectSphereBot(Bot):
             distance = ray.intersects_sphere(sphere)
             if distance is not None:
                 if self.rotating_around is not None:
-                    # print(Team(self.color).name, 'trying to hit closest sphere from a rotator')
+                    # logging.info(Team(self.color).name, 'trying to hit closest sphere from a rotator')
                     return True
                 else:
-                    # print('trying to hit closest sphere going straight for it')
+                    # logging.info('trying to hit closest sphere going straight for it')
                     return False
         self.timer += time_delta
         return False
@@ -106,4 +108,4 @@ class DodgingCollectSphereBot(Bot):
         distance = ray.intersects_sphere(sphere)
         if distance is not None:
             pygame.draw.line(debug_surface, self.color, mul(self.center), mul(sphere.center))
-            # print(f'{ray}, {sphere}')
+

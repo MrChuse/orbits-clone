@@ -1,5 +1,6 @@
 import socket
 import threading
+import logging
 
 import pygame
 
@@ -16,7 +17,7 @@ class ClientPickColorScreen(PickColorScreen):
         try:
             self.sock.connect((self.host, self.port))
         except (ConnectionRefusedError, TimeoutError) as e:
-            print(e)
+            logging.info(e)
 
 
         self.server = ClientThreadingTCPServer(('0.0.0.0', 9002), ClientThreadedTCPRequestHandler, self.on_connect, self.on_disconnect)
@@ -24,13 +25,13 @@ class ClientPickColorScreen(PickColorScreen):
 
         server_thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         server_thread.start()
-        print(f"Client {ip}:{port}, loop running in thread:", server_thread.name)
+        logging.info(f"Client {ip}:{port}, loop running in thread:", server_thread.name)
 
     def on_connect(self, sock):
         command, number_of_players = recv_command(sock)
         if command != Command.PLA:
-            print('error:', command, 'was not PLA')
-        print(f'{number_of_players=}')
+            logging.info('error:', command, 'was not PLA')
+        logging.info(f'{number_of_players=}')
         for i in range(number_of_players):
             key, team = recv_player(sock)
             self.key_team_iter_map[key] = iter(Team)
@@ -74,13 +75,13 @@ class ClientPickColorScreen(PickColorScreen):
 class ClientGameScreen(GameScreen):
     def __init__(self, surface: pygame.Surface, colors, sock, server: ClientThreadingTCPServer,):
         if server.seed is None:
-            print('server.seed is None :(')
+            logging.info('server.seed is None :(')
         super().__init__(surface, colors, server.seed)
         self.sock: socket.socket = sock
         self.server = server
 
     def clean_up(self):
-        print('shutdown')
+        logging.info('shutdown')
         self.server.shutdown()
         self.sock.close()
 

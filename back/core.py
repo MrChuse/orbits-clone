@@ -254,10 +254,8 @@ class PlayerSphere(Sphere):
             me_rotator_vector = self.rotating_around.center - self.center
             angle = me_rotator_vector.angle_to(self.velocity)
             delta_angle = 360 * DEFAULT_SPEED / (2 * math.pi * me_rotator_vector.magnitude())
-            # old_angle = angle
             while angle > 180: angle -= 360
             while angle < -180: angle += 360
-            # print(old_angle, angle)
             if angle < 0:
                 velocity_rotate_angle = 90
             else:
@@ -268,7 +266,6 @@ class PlayerSphere(Sphere):
             self.center = self.rotating_around.center + new_rotator_me_vector
             self.velocity = new_rotator_me_vector.rotate(velocity_rotate_angle)
             self.velocity.scale_to_length(DEFAULT_SPEED)
-            # super().update(debug_surface)
         for i, sphere in enumerate(self.trail, 1):
             sphere.center = sphere.center.move_towards(self.get_sphere_position(i), DEFAULT_SPEED*3)
         for i, sphere in enumerate(self.queue_to_trail, len(self.trail)):

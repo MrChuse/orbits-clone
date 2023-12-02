@@ -344,7 +344,6 @@ class TestRayIntersectSphere(Screen):
         distance = False
         if self.ray1 is not None and self.ray2 is not None:
             distance = self.ray1.intersects(self.ray2)
-            # print(f'{self.ray1}, {self.ray2}, {distance}')
             if distance is not None:
                 self.ray_color = (0, 255, 0)
                 dir = Vector2(self.ray1.direction)

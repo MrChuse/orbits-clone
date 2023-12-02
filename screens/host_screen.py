@@ -2,6 +2,7 @@ import socket
 import threading
 import random
 import pickle
+import logging
 
 import pygame
 
@@ -20,12 +21,12 @@ class HostPickColorScreen(PickColorScreen):
 
         server_thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         server_thread.start()
-        print(f"Server {ip}:{port}, loop running in thread:", server_thread.name)
+        logging.info(f"Server {ip}:{port}, loop running in thread:", server_thread.name)
 
     def on_connect(self, sock: socket.socket):
         send_command(sock, Command.PLA, len(self.key_map))
         l = list(Team)
-        print(self.key_map)
+        logging.info(self.key_map)
         for key, (team, name, PlayerClass) in self.key_map.items():
             send_command(sock, Command.KEY, key)
             send_command(sock, Command.TEA, l.index(team))
@@ -70,7 +71,7 @@ class HostPickColorScreen(PickColorScreen):
 class HostGameScreen(GameScreen):
     def __init__(self, surface: pygame.Surface, colors, server: HostThreadingTCPServer):
         if server.seed is None:
-            print('server.seed is None :(')
+            logging.info('server.seed is None :(')
         super().__init__(surface, colors, server.seed)
         self.server = server
         self.send_state_every_seconds = 1
@@ -78,7 +79,7 @@ class HostGameScreen(GameScreen):
         self.timer = 0
 
     def clean_up(self):
-        print('shutdown')
+        logging.info('shutdown')
         self.server.shutdown()
         for sock in self.server.client_sockets:
             sock.close()

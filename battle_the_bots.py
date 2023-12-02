@@ -1,5 +1,9 @@
 from collections import Counter
 import time
+import logging
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)-15s %(levelname)-8s %(name)-8s %(filename)s:%(lineno)s %(message)s')
+
 
 import pygame
 pygame.init()
@@ -16,7 +20,7 @@ assert len(PLAYERS) <= 12
 colors = {
     key: (team, class_.__name__ + f' {counter}', class_) for key, team, (counter, class_) in zip(BotKeys, Team, enumerate(PLAYERS))
 }
-# print(colors)
+# logging.info(colors)
 def play_a_console_game(number, seed):
     sstart_time = time.time()
     start_time = time.time()
@@ -28,7 +32,7 @@ def play_a_console_game(number, seed):
         time_delta = 1 / 60 # seconds
         game.update(time_delta)
         if current_time > 1:
-            # print(' '*50, '\r', end='')
+            # logging.info(' '*50, '\r', end='')
             s = f'Game {number}: seed {game.seed} | {game.stage.name} {game.scores} {overall_time:.1f}'
             print(f'{s:<50}\r', end='')
             start_time = time.time()
@@ -56,8 +60,8 @@ def main():
         wins.append(best_player)
         time_passed = time.time() - start_time
         cumulative_times.append(time_passed)
-        print(f'Game {game_number}: winner is {best_player} with score {score}. {time_passed} seconds from start')
-    print(Counter(wins))
+        logging.info(f'Game {game_number}: winner is {best_player} with score {score}. {time_passed:.1f} seconds from start')
+    logging.info(Counter(wins))
 
     game_times = []
     for i,j in zip(cumulative_times[:-1], cumulative_times[1:]):
@@ -66,8 +70,8 @@ def main():
     l_m_sqrd = [(l - mean) ** 2 for l in game_times]
     import math
     std = math.sqrt(sum(l_m_sqrd) / len(game_times))
-    print(f'{mean=}, {std=}')
-    print(time.time() - start_time, 'seconds passed.')
+    logging.info(f'{mean=:.3f}, {std=:.3f}')
+    logging.info(f'{time.time() - start_time:.1f} seconds passed.')
 
 if __name__ == '__main__':
     main()

@@ -1,7 +1,7 @@
-from dataclasses import dataclass
 from typing import Optional, Callable
 import random
 import heapq
+import logging
 
 import pygame
 import pygame.freetype
@@ -67,7 +67,7 @@ class Game:
         self.load_map(map1)
 
         self.seed = seed
-        # print(self.seed)
+        # logging.info(self.seed)
         self.random = None
         self.total_uniforms = 0
 
@@ -102,11 +102,11 @@ class Game:
 
     def random_uniform(self, a, b, from_where='unknown'):
         self.total_uniforms += 1
-        # print('uniform', self.total_uniforms, from_where)
+        # logging.info('uniform', self.total_uniforms, from_where)
         return self.random.uniform(a, b)
 
     def random_randint(self, a, b):
-        # print('randint')
+        # logging.info('randint')
         return self.random.randint(a, b)
 
     def restart_round(self):
@@ -142,7 +142,7 @@ class Game:
             self.seed = random.randint(0, 1000000000)
         self.random = random.Random(self.seed)
         self.total_uniforms = 0
-        # print('reset seed to', seed, 'and uniforms to 0')
+        # logging.info('reset seed to', seed, 'and uniforms to 0')
 
         self.scores = [0] * self.num_players
         self.restart_round()
@@ -196,7 +196,7 @@ class Game:
             if action in self.keys_list:
                 self.actions_in_last_frame.append(self.keys_list.index(action))
         # if len(actions) > 0:
-        #     print(actions, self.actions_in_last_frame)
+        #     logging.info(actions, self.actions_in_last_frame)
 
     def perform_actions(self):
         if self.actions_in_last_frame is not None:

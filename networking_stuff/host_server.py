@@ -2,6 +2,7 @@ from typing import Callable, Any
 from dataclasses import dataclass
 import socket
 import socketserver
+import logging
 from socketserver import BaseRequestHandler, ThreadingTCPServer
 
 import pygame
@@ -21,13 +22,13 @@ class RememberingClientsTCPServer(ThreadingTCPServer):
         self.clients: list[Client] = []
 
     def on_connect(self, addr):
-        print('Client connected from', addr)
+        logging.info('Client connected from', addr)
 
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             sock.connect((addr[0], self.client_port))
         except ConnectionRefusedError as e:
-            print(addr, e)
+            logging.info(addr, e)
             return
 
         client = Client(addr, sock)
@@ -35,7 +36,7 @@ class RememberingClientsTCPServer(ThreadingTCPServer):
 
     def on_disconnect(self, client):
         self.clients.remove(client)
-        print('Client disconnected', client.addr)
+        logging.info('Client disconnected', client.addr)
 
     def sendall_to_all_clients(self, data: bytes):
         for client in self.clients:
@@ -71,7 +72,7 @@ class HostThreadingTCPServer(ThreadingTCPServer):
                     send_command(sock, command, value)
                 except ConnectionResetError:
                     self.client_sockets.remove(sock)
-                    print('client disconnected')
+                    logging.info('client disconnected')
 
 class HostThreadedTCPRequestHandler(BaseRequestHandler):
     def handle(self):
@@ -79,7 +80,7 @@ class HostThreadedTCPRequestHandler(BaseRequestHandler):
             raise TypeError('Can only handle requests of HostThreadingTCPServer')
 
         addr = self.client_address
-        print('Client connected from', addr)
+        logging.info('Client connected from', addr)
         if addr not in self.server.clients:
             self.server.clients.append(addr)
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -87,7 +88,7 @@ class HostThreadedTCPRequestHandler(BaseRequestHandler):
             try:
                 sock.connect((addr[0], 9002))
             except ConnectionRefusedError as e:
-                print(addr, e)
+                logging.info(addr, e)
                 return
             self.server.on_connect(sock)
 

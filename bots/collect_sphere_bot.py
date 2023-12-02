@@ -48,4 +48,3 @@ class CollectSphereBot(Bot):
         distance = ray.intersects_sphere(sphere)
         if distance is not None:
             pygame.draw.line(debug_surface, self.color, mul(self.center), mul(sphere.center))
-            # print(f'{ray}, {sphere}')

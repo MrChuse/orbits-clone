@@ -2,6 +2,10 @@ from traceback import print_exc
 
 import pygame
 
+import logging
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)-15s %(levelname)-8s %(name)-8s %(filename)s:%(lineno)s %(message)s')
+
 from screens import (GameScreen, PickColorScreen, LocalOnlinePickerScreen,
                     HostPickColorScreen, ClientPickColorScreen,
                     HostPickColorScreen2, ClientPickColorScreen2,
@@ -69,6 +73,7 @@ def main():
             result = cpcs.main()
             if cpcs.force_quit:
                 return
+            colors, sock, seed = result
             cgs = ClientGameScreen2(window_surface, colors, sock, seed)
             cgs.main()
 

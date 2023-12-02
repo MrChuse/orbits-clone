@@ -4,6 +4,7 @@ import socket
 import socketserver
 from socketserver import BaseRequestHandler, ThreadingTCPServer
 import pickle
+import logging
 
 import pygame
 
@@ -17,7 +18,7 @@ class ConnectingThreadingTCPServer(ThreadingTCPServer):
         super().__init__(server_address, RequestHandlerClass, bind_and_activate)
 
     def on_connect(self, addr):
-        print('server connected back')
+        logging.info('server connected back')
 
     def sendall_to_server(self, data):
         self.send_sock.sendall(data)
