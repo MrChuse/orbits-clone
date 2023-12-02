@@ -9,10 +9,11 @@ import pygame
 pygame.init()
 
 from back import Game, BotKeys, Team, GameStage
-from bots import SmartBot, DoNothingBot
+from bots import SmartBot, DoNothingBot, bots
 
 # GAMES = 100 # now using seeds : TODO maybe use seeded seed generation to get same seeds each run instead of having that seed list
 PLAYERS = [SmartBot, SmartBot, DoNothingBot, DoNothingBot] # not more than 12
+PLAYERS = list(bots)
 
 
 assert len(PLAYERS) <= 12
@@ -33,9 +34,12 @@ def play_a_console_game(number, seed):
         game.update(time_delta)
         if current_time > 1:
             # logging.info(' '*50, '\r', end='')
-            s = f'Game {number}: seed {game.seed} | {game.stage.name} {game.scores} {overall_time:.1f}'
-            print(f'{s:<50}\r', end='')
+            s = f'Game {number}: seed {game.seed} | {game.stage.name} {game.scores} {overall_time:.1f} {game.timer:.1f}'
+            print(f'{s:<80}\r', end='')
             start_time = time.time()
+        if game.stage == GameStage.GAMING and game.timer > 180:
+            for index, player in enumerate(game.player_spheres):
+                game.process_player_death(index, player, killer_index=0)
     return game.scores
 
 def set_up_gui_games():
