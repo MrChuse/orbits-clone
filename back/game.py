@@ -102,7 +102,7 @@ class Game:
 
     def random_uniform(self, a, b, from_where='unknown'):
         self.total_uniforms += 1
-        # logging.info('uniform', self.total_uniforms, from_where)
+        # logging.info(f'uniform {self.total_uniforms} {from_where}')
         return self.random.uniform(a, b)
 
     def random_randint(self, a, b):
