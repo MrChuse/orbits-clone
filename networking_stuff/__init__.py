@@ -48,11 +48,11 @@ def send_command(sock: socket.socket, command: Command, value):
     #     send_int(sock, value)
     if command == Command.STT:
         sock.sendall(value)
-        # logging.info('send', command.value, len(value), 'bytes')
+        # logging.info(f'send {command.value} {len(value)} bytes')
     else:
         send_int(sock, value)
         # if command not in (Command.REC, Command.COM):
-        # logging.info('send', command.value, value)
+        # logging.info(f'send {command.value} {value}')
 
 def recv_command(sock: socket.socket, *args):
     # logging.info('trying to recv command')
@@ -75,10 +75,10 @@ def recv_command(sock: socket.socket, *args):
         else:
             value = recv_int(sock)
             # if command not in (Command.COM, Command.REC):
-            # logging.info('recv', command.value, value)
+            # logging.info(f'recv {command.value} {value}')
     else:
         value = recv_int(sock)
-        # logging.info('recv', command, value)
+        # logging.info(f'recv {command} {value}')
 
     return command, value
 

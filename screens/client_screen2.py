@@ -109,6 +109,7 @@ class ClientGameScreen2(GameScreen):
                 command, value = recv_command(self.sock)
             else:
                 command, value = recv_command(self.sock, length_of_state)
+                length_of_state = None
             if command == Command.KEY:
                 self.actions.append(value)
             elif command == Command.STL:

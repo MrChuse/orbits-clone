@@ -50,10 +50,10 @@ class HostMultiplexingThreadingTCPRequestHandler(BaseRequestHandler):
                 self.server.client_captures[addr].append(value)
             elif command == Command.REC:
                 commands_to_send = self.server.commands_to_send[addr]
+                self.server.commands_to_send[addr] = []
                 send_command(self.request, Command.COM, len(commands_to_send))
                 for command in commands_to_send:
                     send_command(self.request, *command)
-                self.server.commands_to_send[addr] = []
             if command == '':
                 break
         self.server.on_disconnect(self.server.clients_numbers[addr])
@@ -71,7 +71,7 @@ class HostPickColorScreen2(PickColorScreen):
 
         server_thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         server_thread.start()
-        logging.info(f"Server {ip}:{port}, loop running in thread:", server_thread.name)
+        logging.info(f"Server {ip}:{port}, loop running in thread: {server_thread.name}")
 
     def on_connect(self, sock: socket.socket):
         send_command(sock, Command.PLA, len(self.key_map))
@@ -112,7 +112,7 @@ class HostPickColorScreen2(PickColorScreen):
         for client_addr, keys in self.server.client_captures.items():
             for key in keys:
                 self.server.send_one_command_to_clients_except((Command.KEY, key), client_addr)
-                logging.info(key, client_addr)
+                logging.info(f'{key} {client_addr}')
                 self.captured_keys.append((key, f'client{self.server.clients_numbers[client_addr]} {pygame.key.name(key)}'))
             keys.clear()
         super().update(time_delta)
