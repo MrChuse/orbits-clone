@@ -45,7 +45,7 @@ map1 = Map([
 ])
 
 class Game:
-    def __init__(self, colors: dict[int, tuple[Team, str, Callable[[], PlayerSphere]]], seed=None) -> None:
+    def __init__(self, colors: dict[int, tuple[Team, str, Callable[[], PlayerSphere]]], seed=None):
         size = (2, 1)
         self.size = size
         self.leftwall = None
@@ -385,15 +385,6 @@ class Game:
 
 
     def update(self, time_delta: float):
-        # get bots actions
-        state = self.get_state()
-        bots_actions = []
-        for bot, key in zip(self.bot_player_spheres, BotKeys):
-            action = bot.get_action(state, time_delta)
-            if action:
-                bots_actions.append(key)
-        self.process_actions(bots_actions)
-
         # perform actions. actions were commited in process actions function
         if self.stage == GameStage.ROTATING_AROUND_CENTER:
             if self.timer < 3:
@@ -403,6 +394,15 @@ class Game:
                 self.stage = GameStage.GAMING
                 self.timer = 0
         elif self.stage == GameStage.GAMING:
+            # get bots actions
+            state = self.get_state()
+            bots_actions = []
+            for bot, key in zip(self.bot_player_spheres, BotKeys):
+                action = bot.get_action(state, time_delta)
+                if action:
+                    bots_actions.append(key)
+            self.process_actions(bots_actions)
+
             self.perform_actions()
 
             self.update_positions_and_wall_collisions()

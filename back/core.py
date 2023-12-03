@@ -3,6 +3,7 @@ from enum import Enum, auto
 from typing import Union, Optional
 from collections import deque
 import math
+import pickle
 
 import pygame
 from pygame import Vector2
@@ -107,7 +108,7 @@ class Sphere:
     def intersects(self, other: 'Sphere'):
         return self.center.distance_squared_to(other.center) <= (self.radius + other.radius) ** 2
     def intersects_vertical_line(self, other: VerticalLine):
-            return other.x - self.radius < self.center.x < other.x + self.radius
+        return other.x - self.radius < self.center.x < other.x + self.radius
     def intersects_horizontal_line(self, other: HorizontalLine):
         return other.y - self.radius < self.center.y < other.y + self.radius
 
@@ -135,18 +136,18 @@ class Sphere:
         return self.center.distance_squared_to(other.center) <= other.radius ** 2
 
     def collide_with(self, other: 'Sphere'):
-            # pushout
-            dist = self.center.distance_to(other.center)
-            overlap = -(dist - self.radius - other.radius) * 0.5
-            self.center += overlap * (self.center - other.center).normalize() * 1.003
-            other.center -= overlap * (self.center - other.center).normalize() * 1.003
+        # pushout
+        dist = self.center.distance_to(other.center)
+        overlap = -(dist - self.radius - other.radius) * 0.5
+        self.center += overlap * (self.center - other.center).normalize() * 1.003
+        other.center -= overlap * (self.center - other.center).normalize() * 1.003
 
-            # elastic collision
-            n = (other.center - self.center).normalize()
-            k = self.velocity - other.velocity
-            p = 2 * (n * k) / (self.mass + other.mass)
-            self.velocity -= p * other.mass * n
-            other.velocity += p * self.mass * n
+        # elastic collision
+        n = (other.center - self.center).normalize()
+        k = self.velocity - other.velocity
+        p = 2 * (n * k) / (self.mass + other.mass)
+        self.velocity -= p * other.mass * n
+        other.velocity += p * self.mass * n
 
     def update(self):
         self.center += self.velocity
@@ -338,6 +339,32 @@ class GameState:
                               self.total_uniforms,
                               # self.random_,
                               player_scores, how_to_win_text, stage, someone_won)
+
+    def save(self, filename):
+        player_spheres = []
+        for ps in self.player_spheres:
+            _ps = PlayerSphere(
+                ps.center,
+                ps.velocity,
+                ps.radius,
+                ps.color
+            )
+            _ps.rotating_around = ps.rotating_around
+            _ps.dodge_initiated = ps.dodge_initiated
+            _ps.frames_from_dodge = ps.frames_from_dodge
+            _ps.path = ps.path
+            _ps.queue_to_trail = ps.queue_to_trail
+            _ps.trail = ps.trail
+            _ps.attacking_spheres = ps.attacking_spheres
+            _ps.alive = ps.alive
+        self.player_spheres = player_spheres
+        with open(filename, 'wb') as f:
+            pickle.dump(self, f)
+
+    @staticmethod
+    def load(filename):
+        with open(filename, 'rb') as f:
+            return pickle.load(f)
 
 @dataclass
 class GameStateFront(GameState):
