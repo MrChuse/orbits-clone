@@ -9,11 +9,12 @@ import pygame
 pygame.init()
 
 from back import Game, BotKeys, Team, GameStage
-from bots import SmartBot, DoNothingBot, bots
+from bots import SmartBot, DoNothingBot, RandomBot, bots
 
 # GAMES = 100 # now using seeds : TODO maybe use seeded seed generation to get same seeds each run instead of having that seed list
 PLAYERS = [SmartBot, SmartBot, DoNothingBot, DoNothingBot] # not more than 12
-PLAYERS = list(bots)
+# PLAYERS = list(bots)
+PLAYERS = list(map(lambda x: RandomBot(x/20), range(1, 11)))
 
 
 assert len(PLAYERS) <= 12
