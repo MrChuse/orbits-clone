@@ -37,10 +37,10 @@ class SmartBot(Bot):
 
         # dodge first
         spheres_to_check = []
-        for player_sphere, attacking_spheres in zip(state.player_spheres, state.attacking_spheres):
+        for player_sphere in state.player_spheres:
             if player_sphere is self: continue
             spheres_to_check.extend(player_sphere.trail)
-            for sphere in attacking_spheres:
+            for sphere in player_sphere.attacking_spheres:
                 time = sphere.will_hit_sphere(self)
                 if time is not None and time < 10:
                     # logging.info(Team(self.color).name, 'jumping to dodge attack', time)

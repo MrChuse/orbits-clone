@@ -14,7 +14,7 @@ def draw_sphere(surface: pygame.Surface, sphere: Sphere, game_size: tuple[int, i
     new_rect = tuple(map(lambda i : i * min(game_size), rect))
     pygame.draw.ellipse(surface, color=force_color, rect=new_rect)
 
-def draw_rotator_sphere(surface, rotator: RotatorSphere, game_size):
+def draw_rotator(surface, rotator: RotatorSphere, game_size):
     draw_sphere(surface, rotator, game_size)
     draw_sphere(surface, rotator.middle_sphere, game_size)
 
@@ -32,6 +32,8 @@ def draw_player(surface, sphere: PlayerSphere, game_size):
         draw_sphere(surface, i, game_size)
     for i in sphere.queue_to_trail:
         draw_sphere(surface, i, game_size)
+    for i in sphere.attacking_spheres:
+        draw_sphere(surface, i, game_size)
 
 font = pygame.freetype.SysFont('arial', 25)
 
@@ -48,16 +50,13 @@ def draw_player_leaderboard(surface, pos, text, color):
 
 def draw_game(surface, state: GameStateFront, game_size):
     for i in state.rotators:
-        draw_rotator_sphere(surface, i, game_size)
+        draw_rotator(surface, i, game_size)
     for i in state.active_spheres:
         draw_sphere(surface, i, game_size)
     for i in state.inactive_spheres:
         draw_sphere(surface, i, game_size)
     for i in state.bursts:
         draw_burst(surface, i, game_size)
-    for players_spheres in state.attacking_spheres:
-        for i in players_spheres:
-            draw_sphere(surface, i, game_size)
     for i in state.player_spheres:
         draw_player(surface, i, game_size)
     if state.stage == GameStage.ROTATING_AROUND_CENTER:

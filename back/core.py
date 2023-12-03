@@ -199,8 +199,9 @@ class PlayerSphere(Sphere):
         self.frames_from_dodge = 0
         self.path : deque[Vector2] = deque(maxlen=self.path_size_per_trail_sphere)
         self.path.append(center)
-        self.trail : list[Sphere] = []
         self.queue_to_trail : list[Sphere] = []
+        self.trail : list[Sphere] = []
+        self.attacking_spheres: list[Sphere] = []
         self.alive = True
 
     def is_dodging(self):
@@ -319,7 +320,6 @@ class GameState:
     player_spheres: list[PlayerSphere]
     active_spheres: list[Sphere]
     inactive_spheres: list[Sphere]
-    attacking_spheres: list[list[Sphere]]
     bursts: list[Burst]
     rotators: list[RotatorSphere]
     timer: float
@@ -330,7 +330,6 @@ class GameState:
         return GameStateFront(self.player_spheres,
                               self.active_spheres,
                               self.inactive_spheres,
-                              self.attacking_spheres,
                               self.bursts,
                               self.rotators,
                               self.timer,

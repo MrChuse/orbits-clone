@@ -75,7 +75,6 @@ class Game:
         self.bot_player_spheres: list[Bot] = []
         self.active_spheres: list[Sphere] = []
         self.inactive_spheres: list[Sphere] = []
-        self.attacking_spheres: list[list[Sphere]] = None
         self.bursts = []
         self.someone_won = False
 
@@ -121,7 +120,6 @@ class Game:
             if isinstance(ps, Bot):
                 self.bot_player_spheres.append(ps)
             self.player_spheres.append(ps)
-        self.attacking_spheres = [[] for _ in range(self.num_players)]
 
         self.inactive_spheres = []
         self.active_spheres = []
@@ -233,7 +231,7 @@ class Game:
                             attacking_sphere = player_sphere.remove_sphere()
                             attacking_sphere.velocity = player_sphere.velocity * 2
                             attacking_sphere.damping_factor = 1
-                            self.attacking_spheres[player].append(attacking_sphere)
+                            player_sphere.attacking_spheres.append(attacking_sphere)
                 if self.stage == GameStage.END_SCREEN:
                     self.timer += 2
         self.actions_in_last_frame = []
@@ -244,12 +242,12 @@ class Game:
             if self.check_wall_collision(i):
                 i.rotating_around = None
             i.update()
-        for player, attacking_spheres in zip(self.player_spheres, self.attacking_spheres):
-            for i in attacking_spheres:
+        for player in self.player_spheres:
+            for i in player.attacking_spheres:
                 if self.check_wall_collision(i) and not player.is_dodging():
                     i.color = (255, 255, 255)
                     self.inactive_spheres.append(i)
-                    attacking_spheres.remove(i)
+                    player.attacking_spheres.remove(i)
                     i.damping_factor = 0.98
                 i.update()
         for i in self.active_spheres:
@@ -277,11 +275,11 @@ class Game:
                             if i.intersects(sphere):
                                 i.active_player.add_sphere_to_queue(sphere)
                                 p.remove_sphere(index)
-                for l in self.attacking_spheres:
-                    for sphere in l:
+                for player in self.player_spheres:
+                    for sphere in player.attacking_spheres:
                         if i.intersects(sphere):
                             i.active_player.add_sphere_to_queue(sphere)
-                            l.remove(sphere)
+                            player.attacking_spheres.remove(sphere)
                 for b in self.bursts:
                     if i == b or b.active: continue
                     if i.intersects(b):
@@ -316,20 +314,18 @@ class Game:
                     if not sphere.is_dodging() and not sphere_to_check.is_dodging():
                         sphere.collide_with(sphere_to_check)
 
-            # other players' trails
             for other_player in self.player_spheres:
                 if sphere == other_player:
                     continue
+                # other players' trails
                 for sphere_to_check in other_player.trail:
                     if sphere.intersects(sphere_to_check) and not sphere.is_dodging():
                         self.process_player_death(index, sphere, killer_sphere=other_player)
 
-            # attacking spheres
-            for index2, players_spheres in enumerate(self.attacking_spheres):
-                if index == index2: continue # this players' spheres
-                for sphere_to_check in players_spheres:
+                # attacking spheres
+                for sphere_to_check in other_player.attacking_spheres:
                     if sphere.intersects(sphere_to_check) and not sphere.is_dodging():
-                        self.process_player_death(index, sphere, killer_index=index2)
+                        self.process_player_death(index, sphere, killer_sphere=other_player)
 
             # white spheres
             for sphere_to_check in self.active_spheres:
@@ -473,7 +469,6 @@ class Game:
         return GameState(self.player_spheres,
                          self.active_spheres,
                          self.inactive_spheres,
-                         self.attacking_spheres,
                          self.bursts,
                          self.rotators,
                          self.timer,
@@ -491,7 +486,6 @@ class Game:
         self.player_spheres = state.player_spheres
         self.active_spheres = state.active_spheres
         self.inactive_spheres = state.inactive_spheres
-        self.attacking_spheres = state.attacking_spheres
         self.bursts = state.bursts
         self.timer = state.timer
         self.death_order = state.death_order

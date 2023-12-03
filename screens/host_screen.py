@@ -113,7 +113,7 @@ class HostGameScreen(GameScreen):
         # 'players': self.player_spheres,
         # 'spheres': self.spheres,
         # 'someone_won': self.someone_won,
-        # 'attacking_spheres': self.attacking_spheres}
+        # }
 
         # state_commands.append((Command.ROT, len(state['rotators'])))
         # for rotator in state['rotators']:
