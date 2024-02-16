@@ -8,7 +8,7 @@ from typing import Optional
 import dataclasses
 
 import numpy as np
-import keras
+import pygad
 
 import pygame
 
@@ -53,22 +53,6 @@ def player_to_vector(player: PlayerSphere, bot=None, verbose=False):
         # print('player is dead, shape is', PLAYER_VECTOR_SHAPE)
         return np.zeros(PLAYER_VECTOR_SHAPE) # calculated by a function below
 
-def state_to_vector(state: GameState, bot=None, verbose=False):
-    vector = [
-        *map(lambda x: player_to_vector(x, bot, verbose), state.player_spheres),
-        np.zeros((PLAYER_VECTOR_SHAPE[0] * (12 - len(state.player_spheres)),)),
-        from_sphere_list_to_vector(state.active_spheres, 10),
-        from_sphere_list_to_vector(state.inactive_spheres, 10),
-        from_sphere_list_to_vector(state.bursts, 3),
-        [state.timer]
-    ]
-    if verbose:
-        print('state lengths:')
-        for i in vector:
-            print(len(i))
-    a = np.hstack(vector).reshape((1, -1))
-    return a
-
 def calc_player_vector_shape():
     sh = player_to_vector(PlayerSphere(
         pygame.Vector2(0, 0),
@@ -80,6 +64,28 @@ def calc_player_vector_shape():
     return sh
 PLAYER_VECTOR_SHAPE = calc_player_vector_shape()
 
+def state_to_vector(state: GameState, bot=None, verbose=False):
+    players = [
+        *map(lambda x: player_to_vector(x, bot, verbose), state.player_spheres),
+    ]
+    for _ in range(12 - len(state.player_spheres)):
+        players.append(np.zeros(PLAYER_VECTOR_SHAPE))
+    rest = [
+        from_sphere_list_to_vector(state.active_spheres, 10),
+        from_sphere_list_to_vector(state.inactive_spheres, 10),
+        from_sphere_list_to_vector(state.bursts, 3),
+        [state.timer],
+    ]
+    if verbose:
+        print('state lengths:')
+        for i in players+rest:
+            print(len(i))
+    rest = np.hstack(rest)
+    # print(*(player.shape for player in players))
+    d = [np.array(p) for p in players]
+    d.append(rest)
+    return d
+
 def calc_state_vector_shape():
     shapes_per_bot_amount = []
     for bots_amount in  range(1, 13):
@@ -88,65 +94,80 @@ def calc_state_vector_shape():
         for i in range(190):
             g.update(1/60)
         verbose = False # bots_amount==12
-        sh = state_to_vector(g.get_state(), verbose=verbose).shape
+        sh = state_to_vector(g.get_state(), verbose=verbose)[-1].shape
         shapes_per_bot_amount.append(sh)
     for sh in shapes_per_bot_amount:
         assert sh == shapes_per_bot_amount[0]
-    state_shape = (sh[1],)
+    state_shape = (sh[-1],)
     print(f'state shape is {state_shape}')
     return state_shape
 STATE_VECTOR_SHAPE = calc_state_vector_shape()
 
-def create_keras_model():
-    model = keras.Sequential([
-        keras.Input(STATE_VECTOR_SHAPE),
-        keras.layers.Dense(50, activation='relu'),
-        keras.layers.Dense(1, activation='tanh')
-    ])
-    print(f'Model has {model.count_params()} params')
-    return model
+class Model:
+    def __init__(self, weights: Optional[np.ndarray] = None):
+        self.d_out = 10
+        if weights is None:
+            self.dense1 = np.random.random((PLAYER_VECTOR_SHAPE[0]+1, self.d_out)) * 2 - 1
+            self.dense2 = np.random.random((STATE_VECTOR_SHAPE[0]+1, self.d_out)) * 2 - 1
+            self.dense3 = np.random.random((self.d_out*13+1, 1)) * 2 - 1
+        else:
+            part1 = (PLAYER_VECTOR_SHAPE[0]+1)*self.d_out
+            part2 = (PLAYER_VECTOR_SHAPE[0]+1)*self.d_out + (STATE_VECTOR_SHAPE[0]+1) * self.d_out
+            self.dense1 = weights[:part1].reshape(-1, self.d_out)
+            self.dense2 = weights[part1:part2].reshape(-1, self.d_out)
+            self.dense3 = weights[part2:].reshape(-1, 1)
+
+    def get_weights(self):
+        return np.hstack([self.dense1.reshape(-1),
+                          self.dense2.reshape(-1),
+                          self.dense3.reshape(-1)])
+
+    def __call__(self, x):
+        inter = []
+        for i in x[:-1]:
+            i = np.hstack((i, [1]))
+            i = i @ self.dense1
+            i = i * (i > 0) # ReLU
+            inter.append(i)
+        x13 = np.hstack((x[-1], [1]))
+        x13 = x13 @ self.dense2
+        x13 = x13 * (x13 > 0) # ReLU
+        inter.append(x13)
+        inter.append([1])
+        x = np.hstack(inter)
+        x = x @ self.dense3
+        x = np.tanh(x)
+        return x
 
 class KerasBot:
-    def __init__(self, model: Optional[keras.Model]=None):
+    def __init__(self, model: Optional[Model]=None):
         if model is None:
-            model = create_keras_model()
+            model = Model()
         self.model = model
-        self.__name__ = f'KerasBot'
+        self.__name__ = f'NumpyBotSplit'
 
     def __call__(self, center, velocity, radius, color):
         return KerasBotThing(self.model, center, velocity, radius, color)
 
+    @staticmethod
+    def from_ga_file(filename):
+        generations = 1000
+        filename = f'genetic_algorithm_results_{generations}'
+        ga_instance: pygad.GA = pygad.load(filename)
+        solution, fitness, idx = ga_instance.best_solution(ga_instance.last_generation_fitness)
+        model = Model(solution)
+        bot = KerasBot(model)
+        KerasBot.__name__ += str(generations)
+        return bot
+
+
 class KerasBotThing(Bot):
-    def __init__(self, model: keras.Model, center, velocity, radius, color):
+    def __init__(self, model, center, velocity, radius, color):
         super().__init__(center, velocity, radius, color)
         self.model = model
 
     def get_action(self, state: GameState, time_delta: float) -> bool:
+        if not self.alive: return False
         vector = state_to_vector(state, self)
-        if vector.shape[1] != STATE_VECTOR_SHAPE[0]:
-            print(f'vector shape doesnt match: {vector.shape} != {STATE_VECTOR_SHAPE}')
-            state_to_vector(state, verbose=True)
-            state.save(f'faulty_state.pickle')
+        return self.model(vector) > 0.7
 
-        return self.model.predict(vector, verbose=0) > 0 # call directly for faster execution of small inputs
-
-def load_bot_from_ga_dump(filename):
-    import pygad
-    from learn_ga import create_model_from_solution
-    ga_instance: pygad.GA = pygad.load(filename)
-    solution, fitness, idx = ga_instance.best_solution(ga_instance.last_generation_fitness)
-
-    model = create_keras_model()
-    model = create_model_from_solution(model, solution)
-    bot = KerasBot(model)
-    return bot
-
-class KerasBotWithWeights(Bot):
-    def __init__(self, center, velocity, radius, color):
-        super().__init__(center, velocity, radius, color)
-        self.model = create_keras_model()
-        self.model.load_weights('weights')
-
-    def get_action(self, state: GameState, time_delta: float) -> bool:
-        vector = state_to_vector(state, self)
-        return self.model(vector) > 0.5

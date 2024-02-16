@@ -8,7 +8,12 @@ from .cling_bot import ClingBot
 from .do_nothing_bot import DoNothingBot
 from .random_bot import RandomBot
 
-bots = [SmartBot, DodgingCollectSphereBot, StateMachineBot, CollectSphereBot, WaitClingBot, ClingBot, DoNothingBot, RandomBot(0.5)]
+# from .keras_bot import KerasBotWithWeights
+from .keras_bot_numpy import KerasBot as KBN
+from .keras_bot_numpy_split import KerasBot as KBNS
+
+# bots = [Kerasbot, SmartBot, DodgingCollectSphereBot, StateMachineBot, CollectSphereBot, WaitClingBot, ClingBot, DoNothingBot, RandomBot(0.5)]
+bots = [KBNS(), KBN.from_ga_file('genetic_algorithm_results_250'), SmartBot, DodgingCollectSphereBot, StateMachineBot, CollectSphereBot, WaitClingBot, ClingBot, DoNothingBot, RandomBot(0.5)]
 
 
 # bots check

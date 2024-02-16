@@ -28,7 +28,6 @@ from .core import (
     RotatorSphere,
     Burst,
 )
-from bots import Bot
 
 map1 = Map([
     (0.1, 0.2, ROTATOR_SIZE),
@@ -72,7 +71,7 @@ class Game:
         self.total_uniforms = 0
 
         self.player_spheres: list[PlayerSphere] = []
-        self.bot_player_spheres: list[Bot] = []
+        self.bot_player_spheres: list = []
         self.active_spheres: list[Sphere] = []
         self.inactive_spheres: list[Sphere] = []
         self.bursts = []
@@ -117,7 +116,7 @@ class Game:
             pos = Vector2(0, 0)
             vel = Vector2(DEFAULT_SPEED, 0)
             ps = PlayerClass(pos, vel, PLAYER_SIZE, team.value)
-            if isinstance(ps, Bot):
+            if key in list(BotKeys):
                 self.bot_player_spheres.append(ps)
             self.player_spheres.append(ps)
 
