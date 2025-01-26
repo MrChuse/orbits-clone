@@ -104,3 +104,49 @@ class HostThreadedTCPRequestHandler(BaseRequestHandler):
             except ConnectionAbortedError as e:
                 self.server.on_disconnect(self.request, client_number)
                 break
+
+
+class HostMultiplexingThreadingTCPServer(ThreadingTCPServer):
+    daemon_threads = True
+    def __init__(self, server_address: Any, RequestHandlerClass: Callable[[Any, Any, Any], BaseRequestHandler], on_connect, on_disconnect, bind_and_activate: bool = True) -> None:
+        super().__init__(server_address, RequestHandlerClass, bind_and_activate)
+        self.on_connect = on_connect
+        self.on_disconnect = on_disconnect
+        self.clients_numbers: dict[tuple, int] = {}
+        self.commands_to_send: dict[tuple, list] = {}
+        self.client_captures: dict[tuple, list] = {}
+
+    def send_commands_to_all_clients(self, commands):
+        for l in self.commands_to_send.values():
+            l.extend(commands)
+
+    def send_one_command_to_clients_except(self, command, except_client):
+        for addr, l in self.commands_to_send.items():
+            if addr == except_client: continue
+            l.append(command)
+
+class HostMultiplexingThreadingTCPRequestHandler(BaseRequestHandler):
+    def handle(self):
+        if not isinstance(self.server, HostMultiplexingThreadingTCPServer):
+            raise TypeError('Can only handle requests of HostMultiplexingThreadingTCPServer')
+
+        addr = self.client_address
+        logging.info(f'Client connected from {addr}')
+
+        self.server.commands_to_send[addr] = []
+        self.server.client_captures[addr] = []
+        self.server.clients_numbers[addr] = len(self.server.clients_numbers)
+        self.server.on_connect(self.request)
+        while True:
+            command, value = recv_command(self.request)
+            if command == Command.KEY:
+                self.server.client_captures[addr].append(value)
+            elif command == Command.REC:
+                commands_to_send = self.server.commands_to_send[addr]
+                self.server.commands_to_send[addr] = []
+                send_command(self.request, Command.COM, len(commands_to_send))
+                for command in commands_to_send:
+                    send_command(self.request, *command)
+            if command == '':
+                break
+        self.server.on_disconnect(self.server.clients_numbers[addr])
