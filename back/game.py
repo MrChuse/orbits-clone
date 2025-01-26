@@ -417,7 +417,7 @@ class Game:
             self.timer += time_delta
 
             winner = [(index, p.color) for index, p in enumerate(self.player_spheres) if p.alive]
-            if len(winner) < 2 and self.num_players > 1:
+            if len(winner) < 2 and self.num_players > 1: # when num players = 1 we just play endlessly. By design.
                 self.stage = GameStage.SHOWING_RESULTS
                 self.timer = 0
                 for w in winner:

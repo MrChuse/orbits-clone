@@ -99,7 +99,7 @@ class HostPickColorScreen2(PickColorScreen):
         for key, name in self.captured_keys:
             if key == pygame.K_SPACE:
                 self.server.seed = random.randint(0, 1000000000)
-                if len(self.key_map) >= 2 and self.is_running:
+                if len(self.key_map) >= 1 and self.is_running:
                     self.return_value = self.key_map, self.server
                     self.is_running = False
                     commands.append((Command.STR, key))
