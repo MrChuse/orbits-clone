@@ -149,4 +149,4 @@ class HostMultiplexingThreadingTCPRequestHandler(BaseRequestHandler):
                     send_command(self.request, *command)
             if command == '':
                 break
-        self.server.on_disconnect(self.server.clients_numbers[addr])
+        self.server.on_disconnect(self.request, self.server.clients_numbers[addr])

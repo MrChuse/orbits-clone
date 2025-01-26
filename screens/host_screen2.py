@@ -17,8 +17,8 @@ class HostPickColorScreen2(PickColorScreen):
         super().__init__(surface, draw_bots_buttons=False)
         HOST, PORT = "0.0.0.0", 9001
 
-        self.server = HostMultiplexingThreadingTCPServer((HOST, PORT), HostMultiplexingThreadingTCPRequestHandler, self.on_connect, self.on_disconnect)
 
+        self.server = HostMultiplexingThreadingTCPServer((HOST, PORT), HostMultiplexingThreadingTCPRequestHandler, self.on_connect, self.on_disconnect)
         ip, port = self.server.server_address
 
         server_thread = threading.Thread(target=self.server.serve_forever, daemon=True)
@@ -33,7 +33,7 @@ class HostPickColorScreen2(PickColorScreen):
             send_command(sock, Command.KEY, key)
             send_command(sock, Command.TEA, l.index(team))
 
-    def on_disconnect(self, client_number):
+    def on_disconnect(self, sock: socket.socket, client_number):
         to_delete = []
         for key, (team, name, PlayerClass) in self.key_map.items():
             if name.startswith(f'client{client_number}'):

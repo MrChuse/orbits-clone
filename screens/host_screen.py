@@ -32,7 +32,7 @@ class HostPickColorScreen(PickColorScreen):
             send_command(sock, Command.TEA, l.index(team))
 
     def on_disconnect(self, sock: socket.socket, client_number):
-        self.server.clients.pop(client_number)
+        self.server.clients.pop(client_number) # diff
         to_delete = []
         for key, (team, name, PlayerClass) in self.key_map.items():
             if name.startswith(f'client{client_number}'):
@@ -61,7 +61,7 @@ class HostPickColorScreen(PickColorScreen):
 
         # clients' presses
         for client_id, key, name in self.server.client_captures:
-            for id, sock in enumerate(self.server.client_sockets):
+            for id, sock in enumerate(self.server.client_sockets): # THIS IS IT THE DIFFERENCE BETWEEN MULTIPLEXER AND THIS
                 if client_id != id: # this stupid if doesn't allow send_to_all_clients
                     send_command(sock, Command.KEY, key)
                 self.captured_keys.append((key, name))
@@ -95,7 +95,7 @@ class HostGameScreen(GameScreen):
 
         # host's presses
         for key in self.actions:
-            for sock in self.server.client_sockets:
+            for sock in self.server.client_sockets: # this is actually stupid
                 commands.append((Command.KEY, key))
 
         # collect state
