@@ -13,10 +13,11 @@ from back import Team
 from networking_stuff import send_command, Command, recv_command, HostMultiplexingThreadingTCPServer, HostMultiplexingThreadingTCPRequestHandler
 
 class HostPickColorScreen2(PickColorScreen):
-    def __init__(self, surface: pygame.Surface):
+    def __init__(self, surface: pygame.Surface, send_client_command_back=False):
         super().__init__(surface, draw_bots_buttons=False)
-        HOST, PORT = "0.0.0.0", 9001
+        self.send_client_command_back = send_client_command_back
 
+        HOST, PORT = "0.0.0.0", 9001
 
         self.server = HostMultiplexingThreadingTCPServer((HOST, PORT), HostMultiplexingThreadingTCPRequestHandler, self.on_connect, self.on_disconnect)
         ip, port = self.server.server_address
@@ -52,7 +53,7 @@ class HostPickColorScreen2(PickColorScreen):
             if key == pygame.K_SPACE:
                 self.server.seed = random.randint(0, 1000000000)
                 if len(self.key_map) >= 1 and self.is_running:
-                    self.return_value = self.key_map, self.server
+                    self.return_value = self.key_map, self.server, self.send_client_command_back
                     self.is_running = False
                     commands.append((Command.STR, key))
                     commands.append((Command.SEE, self.server.seed))
@@ -63,17 +64,21 @@ class HostPickColorScreen2(PickColorScreen):
         # clients' presses
         for client_addr, keys in self.server.client_captures.items():
             for key in keys:
-                self.server.send_one_command_to_clients_except((Command.KEY, key), client_addr)
+                if self.send_client_command_back:
+                    self.server.send_commands_to_all_clients([(Command.KEY, key)])
+                else:
+                    self.server.send_one_command_to_clients_except((Command.KEY, key), client_addr)
                 logging.info(f'{key} {client_addr}')
                 self.captured_keys.append((key, f'client{self.server.clients_numbers[client_addr]} {pygame.key.name(key)}'))
             keys.clear()
         super().update(time_delta)
 
 class HostGameScreen2(GameScreen):
-    def __init__(self, surface: pygame.Surface, colors, server: HostMultiplexingThreadingTCPServer):
+    def __init__(self, surface: pygame.Surface, colors, server: HostMultiplexingThreadingTCPServer, send_client_command_back):
         if server.seed is None:
             logging.info('server.seed is None :(')
         super().__init__(surface, colors, server.seed)
+        self.send_client_command_back = send_client_command_back
         self.server = server
         self.send_state_every_seconds = 1
         self.send_state_timer = self.send_state_every_seconds
@@ -123,7 +128,10 @@ class HostGameScreen2(GameScreen):
         # clients' presses
         for client_addr, keys in self.server.client_captures.items():
             for key in keys:
-                self.server.send_one_command_to_clients_except((Command.KEY, key), client_addr)
+                if self.send_client_command_back:
+                    self.server.send_commands_to_all_clients([(Command.KEY, key)])
+                else:
+                    self.server.send_one_command_to_clients_except((Command.KEY, key), client_addr)
                 self.actions.append(key)
             keys.clear()
         super().update(time_delta)

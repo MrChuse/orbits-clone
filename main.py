@@ -51,21 +51,19 @@ def main():
     elif is_local.startswith('online'):
         parts = is_local.split()
         if len(parts) == 2 and parts[1] == 'host':
-            hpcs = HostPickColorScreen2(window_surface)
+            hpcs = HostPickColorScreen2(window_surface, True)
             result = hpcs.main()
             if hpcs.force_quit:
                 return
-            colors, server = result
-            hgs = HostGameScreen2(window_surface, colors, server)
+            hgs = HostGameScreen2(window_surface, *result)
             hgs.main()
 
         elif len(parts) == 3 and parts[1] == 'client':
-            cpcs = ClientPickColorScreen2(window_surface, parts[2])
+            cpcs = ClientPickColorScreen2(window_surface, True, parts[2])
             result = cpcs.main()
             if cpcs.force_quit:
                 return
-            colors, sock, seed = result
-            cgs = ClientGameScreen2(window_surface, colors, sock, seed)
+            cgs = ClientGameScreen2(window_surface, *result)
             cgs.main()
 
 

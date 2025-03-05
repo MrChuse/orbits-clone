@@ -61,8 +61,9 @@ class SocketClient:
                 self.commands_received.append(recv_command(self.sock))
 
 class ClientPickColorScreen2(PickColorScreen):
-    def __init__(self, surface: pygame.Surface, host, port=9001):
+    def __init__(self, surface: pygame.Surface, send_client_command_back=False, host='127.0.0.1', port=9001):
         super().__init__(surface, draw_bots_buttons=False)
+        self.send_client_command_back = send_client_command_back
         self.host = host
         self.port = port
         self.seed = None
@@ -104,6 +105,9 @@ class ClientPickColorScreen2(PickColorScreen):
     def update(self, time_delta):
         for key, name in self.captured_keys:
             self.client.send_command(Command.KEY, key)
+        if self.send_client_command_back:
+            # clear array because we will receive our commands back
+            self.captured_keys.clear()
         while len(self.client.commands_received) > 0:
             command, value = self.client.commands_received.popleft()
             if command == Command.KEY:
@@ -114,15 +118,16 @@ class ClientPickColorScreen2(PickColorScreen):
                 self.seed = value
         for key, team in self.captured_keys:
             if key == pygame.K_SPACE:
-                self.return_value = self.key_map, self.client, self.seed
+                self.return_value = self.key_map, self.client, self.seed, self.send_client_command_back
                 self.is_running = False
         super().update(time_delta)
 
 class ClientGameScreen2(GameScreen):
-    def __init__(self, surface: pygame.Surface, colors, client, seed):
+    def __init__(self, surface: pygame.Surface, colors, client, seed, send_client_command_back):
         if seed is None:
             logging.info('server.seed is None :(')
         super().__init__(surface, colors, seed)
+        self.send_client_command_back = send_client_command_back
         self.client: SocketClient = client
 
     def clean_up(self):
@@ -132,7 +137,9 @@ class ClientGameScreen2(GameScreen):
     def update(self, time_delta):
         for key in self.actions:
             self.client.send_command(Command.KEY, key)
-
+        if self.send_client_command_back:
+            # clear array because we will receive our commands back
+            self.actions.clear()
         while len(self.client.commands_received) > 0:
             command, value = self.client.commands_received.popleft()
             if command == Command.KEY:
