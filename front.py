@@ -14,6 +14,18 @@ def draw_sphere(surface: pygame.Surface, sphere: Sphere, game_size: tuple[int, i
     new_rect = tuple(map(lambda i : i * min(game_size), rect))
     pygame.draw.ellipse(surface, color=force_color, rect=new_rect)
 
+def draw_player_triangle(surface: pygame.Surface, sphere: Sphere, game_size: tuple[int, int]):
+    center = sphere.center
+    scaled_center = center * min(game_size)
+    vel = sphere.velocity.copy()
+    vel.scale_to_length(0.01)
+    vel = vel * min(game_size)
+    little_forward = scaled_center + vel
+    to_the_right = vel.rotate(90)
+    back_right = scaled_center - vel + to_the_right
+    back_left = scaled_center - vel - to_the_right
+    pygame.draw.polygon(surface, (255,255,255), [little_forward, back_right, back_left])
+
 def draw_rotator(surface, rotator: RotatorSphere, game_size):
     draw_sphere(surface, rotator, game_size)
     draw_sphere(surface, rotator.middle_sphere, game_size)
@@ -24,16 +36,17 @@ def draw_burst(surface, burst: Burst, game_size):
 
 def draw_player(surface, sphere: PlayerSphere, game_size):
     if not sphere.alive: return
-    if sphere.is_dodging():
-        draw_sphere(surface, sphere, game_size, force_color=pygame.Color(255,255,255).lerp(sphere.color, 0.7))
-    else:
-        draw_sphere(surface, sphere, game_size)
     for i in sphere.trail:
         draw_sphere(surface, i, game_size)
     for i in sphere.queue_to_trail:
         draw_sphere(surface, i, game_size)
     for i in sphere.attacking_spheres:
         draw_sphere(surface, i, game_size)
+    if sphere.is_dodging():
+        draw_sphere(surface, sphere, game_size, force_color=pygame.Color(255,255,255).lerp(sphere.color, 0.7))
+    else:
+        draw_sphere(surface, sphere, game_size)
+    draw_player_triangle(surface, sphere, game_size)
 
 font = pygame.freetype.SysFont('arial', 25)
 
